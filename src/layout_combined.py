@@ -7,6 +7,7 @@ Description: Unified application combining store layout heatmap generation and t
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
+import sys
 from typing import Optional, List
 
 # Import both application classes
@@ -26,6 +27,22 @@ class CombinedLayoutApp:
         self.root = root
         self.root.title(f"Layout Tools - Heatmap Generator & Text Labeler v{__version__}")
         self.root.geometry("800x600")
+        
+        # Set window icon
+        try:
+            # Get the icon path (works for both script and executable)
+            if getattr(sys, 'frozen', False):
+                # Running as executable
+                icon_path = os.path.join(os.path.dirname(sys.executable), 'icon.ico')
+            else:
+                # Running as script
+                icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'icon.ico')
+            
+            if os.path.exists(icon_path):
+                self.root.iconbitmap(icon_path)
+        except Exception as e:
+            # If icon fails to load, just continue without it
+            print(f"Could not load icon: {e}")
         
         # Center window on screen
         self.center_window(800, 600)

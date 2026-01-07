@@ -109,6 +109,12 @@ if update_installer_src.exists():
     shutil.copy2(update_installer_src, dist_folder / "update_installer.py")
     print("✓ Copied update_installer.py")
 
+# Copy icon file
+icon_src = project_root / "icon.ico"
+if icon_src.exists():
+    shutil.copy2(icon_src, dist_folder / "icon.ico")
+    print("✓ Copied icon.ico")
+
 # Create a simple batch file to run the app
 batch_content = """@echo off
 echo Starting Layout Heatmap Generator...

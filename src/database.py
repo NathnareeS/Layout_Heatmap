@@ -5,6 +5,7 @@ Handles all SQLite database operations for projects, labels, and variables
 
 import sqlite3
 import json
+import sys
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import os
@@ -13,14 +14,19 @@ import os
 class Database:
     def __init__(self, db_path: str = None):
         """Initialize database connection"""
-        # If no path provided, save database in project root (parent of src/)
+        # If no path provided, save database in appropriate location
         if db_path is None:
-            # Get the directory where this script is located (src/)
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            # Get the parent directory (project root)
-            project_root = os.path.dirname(script_dir)
-            # Save database in project root
-            db_path = os.path.join(project_root, "layout_projects.db")
+            # Check if running as a PyInstaller executable
+            if getattr(sys, 'frozen', False):
+                # Running as executable - save database in same folder as .exe
+                application_path = os.path.dirname(sys.executable)
+            else:
+                # Running as script - save in project root (parent of src/)
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                application_path = os.path.dirname(script_dir)
+            
+            # Save database in application directory
+            db_path = os.path.join(application_path, "layout_projects.db")
         
         self.db_path = db_path
         self.conn = None
