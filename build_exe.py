@@ -33,11 +33,12 @@ print("Building executable with PyInstaller...")
 
 # PyInstaller arguments
 # Note: Windows uses semicolon (;) for path separator in --add-data
+# Using --onedir (folder mode) for MUCH faster startup time
 pyinstaller_args = [
     str(src_dir / "layout_combined.py"),  # Main script
     "--name=LayoutHeatmap",  # Executable name
     "--windowed",  # No console window
-    "--onefile",  # Single executable file
+    "--onedir",  # Folder mode - FASTER startup (was --onefile)
     f"--icon={project_root / 'icon.ico'}",  # Application icon
     
     # Add data files (Windows uses semicolon separator)
