@@ -16,11 +16,15 @@ from layout_text_labeler import LayoutTextLabeler
 # Import project management
 from database import Database
 
+# Import version and updater
+from version import __version__, get_version_string
+from updater import check_for_updates_on_startup, manual_update_check
+
 
 class CombinedLayoutApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Layout Tools - Heatmap Generator & Text Labeler")
+        self.root.title(f"Layout Tools - Heatmap Generator & Text Labeler v{__version__}")
         self.root.geometry("800x600")
         
         # Center window on screen
@@ -39,6 +43,9 @@ class CombinedLayoutApp:
         
         # Initialize with project selection screen
         self.show_project_selection()
+        
+        # Check for updates on startup (runs in background)
+        check_for_updates_on_startup(self.root)
     
     def center_window(self, width, height):
         """Center window on screen"""
@@ -645,6 +652,8 @@ class CombinedLayoutApp:
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
         
+        help_menu.add_command(label="🔄 Check for Updates", command=lambda: manual_update_check(self.root))
+        help_menu.add_separator()
         help_menu.add_command(label="About", command=self.show_about)
     
     def setup_status_bar(self):

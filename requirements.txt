@@ -6,6 +6,7 @@ matplotlib==3.8.0
 numpy==1.25.2
 pandas>=2.0.0  # For Excel/CSV import
 openpyxl>=3.0.0  # For Excel file support
+requests>=2.31.0  # For auto-update checker
 
 # Note: PyMuPDF (fitz) is a self-contained library that doesn't require
 # external installations like poppler. Much easier to use!

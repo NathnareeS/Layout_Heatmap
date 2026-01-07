@@ -34,36 +34,60 @@ Each shape can be assigned a sales performance level with corresponding colors:
 
 ## Installation
 
-1. Make sure you have Python 3.7+ installed
+### For End Users (Recommended)
 
-2. Install required packages:
-```bash
-pip install -r requirements.txt
-```
+**No Python installation required!** Just download and run.
 
-**That's it!** 🎉 
+1. **Download the latest release:**
+   - Go to [Releases](https://github.com/YOUR_USERNAME/Layout-Heatmap/releases)
+   - Download the latest `LayoutHeatmap-vX.X.X.zip` file
 
-PyMuPDF is a self-contained library that doesn't require any external dependencies like poppler. No admin rights needed!
+2. **Extract the ZIP file:**
+   - Right-click → Extract All
+   - Choose a location (e.g., `C:\Program Files\LayoutHeatmap`)
 
-3. **Verify Installation:**
+3. **Run the application:**
+   - Double-click `LayoutHeatmap.exe`
+   - That's it! 🎉
+
+### For Developers
+
+If you want to run from source code or contribute:
+
+1. **Clone the repository:**
    ```bash
-   python test_imports.py
+   git clone https://github.com/YOUR_USERNAME/Layout-Heatmap.git
+   cd Layout-Heatmap
    ```
 
-## Quick Start
-
-1. **Launch the Application**:
+2. **Install Python 3.7+ and dependencies:**
    ```bash
-   python layout_heatmap.py
+   pip install -r requirements.txt
+   ```
+
+3. **Run the application:**
+   ```bash
+   python src/layout_combined.py
    ```
    *Or double-click `run_app.bat` on Windows*
 
-2. **Create Your Heatmap**:
-   - Browse and select your PDF store layout
-   - Click "Process PDF" 
-   - Select drawing tool and performance level
-   - Drag to create colored areas on your layout
-   - Save or export your heatmap
+4. **Build executable (optional):**
+   ```bash
+   pip install pyinstaller
+   python build_exe.py
+   ```
+
+## Auto-Update System
+
+The application automatically checks for updates once per day when you launch it.
+
+**To manually check for updates:**
+1. Open the application
+2. Go to **Help** → **Check for Updates**
+3. If an update is available, click **Update Now**
+4. The app will download, install, and restart automatically
+
+**No manual downloading or file replacement needed!** ✨
 
 ## Application Interface
 
