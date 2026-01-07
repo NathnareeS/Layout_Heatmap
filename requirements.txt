@@ -1,0 +1,11 @@
+# Layout Heatmap Generator Requirements
+tkinter  # Usually included with Python
+PyMuPDF==1.23.8  # Easy PDF processing without external dependencies
+Pillow==10.0.1
+matplotlib==3.8.0
+numpy==1.25.2
+pandas>=2.0.0  # For Excel/CSV import
+openpyxl>=3.0.0  # For Excel file support
+
+# Note: PyMuPDF (fitz) is a self-contained library that doesn't require
+# external installations like poppler. Much easier to use!

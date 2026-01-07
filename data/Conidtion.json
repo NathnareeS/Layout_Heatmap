@@ -1,0 +1,52 @@
+{
+  "variables": [
+    {
+      "name": "Sale",
+      "text_color": null,
+      "bg_color": "#ffff00",
+      "text_size": null,
+      "auto_enable_sales": false,
+      "default_unit": "None",
+      "rules": [
+        {
+          "operator": ">=",
+          "threshold": 2000.0,
+          "color": "#ff00ff"
+        },
+        {
+          "operator": "<",
+          "threshold": 2000.0,
+          "color": "#408080"
+        },
+        {
+          "operator": "==",
+          "threshold": 1000.0,
+          "color": "#00ffff"
+        },
+        {
+          "operator": ">",
+          "threshold": 5000.0,
+          "color": "#00ff00"
+        }
+      ]
+    },
+    {
+      "name": "Name",
+      "text_color": "#0000ff",
+      "bg_color": "#c0c0c0",
+      "text_size": null,
+      "auto_enable_sales": false,
+      "default_unit": "None",
+      "rules": []
+    },
+    {
+      "name": "Area",
+      "text_color": "#000000",
+      "bg_color": "#dddddd",
+      "text_size": null,
+      "auto_enable_sales": true,
+      "default_unit": "m\u00b2 (Square Meter)",
+      "rules": []
+    }
+  ]
+}

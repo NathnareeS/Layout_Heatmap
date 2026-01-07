@@ -1,0 +1,79 @@
+{
+  "pdf_file": "D:/OneDrive/Work/CRCS/Code/Layout_Heatmap/CW 2025 Update plan (2).pdf",
+  "shapes": [
+    {
+      "type": "rectangle",
+      "coordinates": [
+        454.3945475014574,
+        148.6833577801096,
+        565.9070658365396,
+        309.5041325218608
+      ],
+      "color": "#ff00ff",
+      "stipple": "gray75",
+      "name": "Mizuno"
+    },
+    {
+      "type": "rectangle",
+      "coordinates": [
+        567.4242429567448,
+        153.99347770082778,
+        890.5829695604524,
+        312.5384867622712
+      ],
+      "color": "#00ff00",
+      "stipple": "gray75",
+      "name": "Golf"
+    },
+    {
+      "type": "rectangle",
+      "coordinates": [
+        603.8364938416696,
+        354.2608575679142,
+        851.1363644351171,
+        520.3917522303835
+      ],
+      "color": "#00ffff",
+      "stipple": "gray75",
+      "name": "Outdoor"
+    },
+    {
+      "type": "rectangle",
+      "coordinates": [
+        882.6458036984351,
+        863.0314525051366,
+        1357.3131025762602,
+        1055.2520941994624
+      ],
+      "color": "#408080",
+      "stipple": "gray75",
+      "name": "Kids"
+    },
+    {
+      "type": "polygon",
+      "coordinates": [
+        607.5450471046621,
+        717.6899045653635,
+        608.4192126400645,
+        953.7145991240092,
+        826.08643095526,
+        958.9595923364235
+      ],
+      "color": "#00ffff",
+      "stipple": "gray75",
+      "name": "Tennis"
+    },
+    {
+      "type": "rectangle",
+      "coordinates": [
+        1140.0449053497941,
+        155.14372565157748,
+        1350.9706447187928,
+        306.80107544581614
+      ],
+      "color": "#00ff00",
+      "stipple": "gray75",
+      "name": "Rectangle 1"
+    }
+  ]
+}
