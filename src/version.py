@@ -5,8 +5,8 @@ Version information for Layout Heatmap Generator
 __version__ = "1.0.0"
 __release_date__ = "2026-01-07"
 __app_name__ = "Layout Heatmap Generator"
-__author__ = "CRCS"
-__github_repo__ = "YOUR_USERNAME/Layout-Heatmap"  # Update this with your GitHub username/repo
+__author__ = "Nathnaree S."
+__github_repo__ = "NathnareeS/Layout_Heatmap"  # Update this with your GitHub username/repo
 
 def get_version_string():
     """Returns formatted version string"""
