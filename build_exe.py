@@ -16,28 +16,37 @@ build_dir = project_root / "build"
 
 # Clean previous builds
 print("Cleaning previous builds...")
-if dist_dir.exists():
-    shutil.rmtree(dist_dir)
-if build_dir.exists():
-    shutil.rmtree(build_dir)
+try:
+    if dist_dir.exists():
+        shutil.rmtree(dist_dir)
+except Exception as e:
+    print(f"Warning: Could not fully clean dist folder: {e}")
+    print("This is usually fine - PyInstaller will overwrite files.")
+
+try:
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+except Exception as e:
+    print(f"Warning: Could not clean build folder: {e}")
 
 print("Building executable with PyInstaller...")
 
 # PyInstaller arguments
+# Note: Windows uses semicolon (;) for path separator in --add-data
 pyinstaller_args = [
     str(src_dir / "layout_combined.py"),  # Main script
     "--name=LayoutHeatmap",  # Executable name
     "--windowed",  # No console window
     "--onefile",  # Single executable file
-    "--icon=NONE",  # Add icon path if you have one
+    f"--icon={project_root / 'icon.ico'}",  # Application icon
     
-    # Add data files
-    f"--add-data={src_dir / 'version.py'}{os.pathsep}{src_dir}",
-    f"--add-data={src_dir / 'updater.py'}{os.pathsep}{src_dir}",
-    f"--add-data={src_dir / 'database.py'}{os.pathsep}{src_dir}",
-    f"--add-data={src_dir / 'layout_heatmap.py'}{os.pathsep}{src_dir}",
-    f"--add-data={src_dir / 'layout_text_labeler.py'}{os.pathsep}{src_dir}",
-    f"--add-data={project_root / 'update_installer.py'}{os.pathsep}.",
+    # Add data files (Windows uses semicolon separator)
+    f"--add-data={src_dir / 'version.py'};src",
+    f"--add-data={src_dir / 'updater.py'};src",
+    f"--add-data={src_dir / 'database.py'};src",
+    f"--add-data={src_dir / 'layout_heatmap.py'};src",
+    f"--add-data={src_dir / 'layout_text_labeler.py'};src",
+    f"--add-data={project_root / 'update_installer.py'};.",
     
     # Hidden imports (modules that PyInstaller might miss)
     "--hidden-import=PIL._tkinter_finder",
