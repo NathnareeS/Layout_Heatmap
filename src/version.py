@@ -2,7 +2,7 @@
 Version information for Layout Heatmap Generator
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __release_date__ = "2026-01-07"
 __app_name__ = "Layout Heatmap Generator"
 __author__ = "Nathnaree S."
