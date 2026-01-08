@@ -1290,12 +1290,14 @@ class LayoutHeatmapApp:
                 stipple=self.get_stipple_pattern()
             )
         elif self.current_tool == "oval":
+            stipple = self.get_stipple_pattern()
+            print(f"Creating oval with opacity: {self.opacity_var.get()}, stipple: '{stipple}'")
             shape_id = self.canvas.create_oval(
                 x1, y1, x2, y2,
                 fill=color,
                 outline="",
                 width=0,
-                stipple=self.get_stipple_pattern()
+                stipple=stipple
             )
         elif self.current_tool == "polygon":
             # This should not be called for polygon - handled separately
