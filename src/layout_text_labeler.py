@@ -1318,56 +1318,74 @@ class LayoutTextLabeler:
         draw = ImageDraw.Draw(overlay)
         
         for idx, shape in enumerate(self.shapes):
-            coords = shape["coordinates"]
-            color_hex = shape.get("color", "#FF0000")
-            shape_type = shape.get("type", "rectangle")
-            
-            # Check if this shape has a label with variable assignment
-            label = self.find_label_for_shape(idx)
-            if label:
-                # Check each text line for variable assignments
-                for i, text_line in enumerate(label.text_lines):
-                    # Check if this line has a variable assigned
-                    if i < len(label.line_variables):
-                        var_name = label.line_variables[i]
-                        if var_name and var_name != "None":
-                            # Find the variable
-                            variable = None
-                            for v in self.variables:
-                                if v.name == var_name:
-                                    variable = v
-                                    break
-                            
-                            if variable:
-                                # Extract numeric value from text
-                                try:
-                                    # Remove commas and extract numbers
-                                    cleaned_text = text_line.replace(',', '').strip()
-                                    # Try to find a number in the text
-                                    import re
-                                    numbers = re.findall(r'-?\d+\.?\d*', cleaned_text)
-                                    if numbers:
-                                        value = float(numbers[0])
-                                        # Evaluate variable rules to get color
-                                        conditional_color = variable.evaluate(value)
-                                        if conditional_color:
-                                            color_hex = conditional_color
-                                            break  # Use first matching variable
-                                except (ValueError, IndexError):
-                                    pass  # Keep default color if parsing fails
-            
-            # Convert hex to RGB and add alpha
-            color_rgb = tuple(int(color_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
-            color_rgba = color_rgb + (80,)  # 80/255 = ~30% opacity
-            
-            # Scale coordinates
-            scaled_coords = [c * self.zoom_factor for c in coords]
-            
-            if shape_type == "rectangle":
-                draw.rectangle(scaled_coords, fill=color_rgba, outline=color_rgb + (150,), width=2)
-            elif shape_type == "polygon":
-                points = [(scaled_coords[i], scaled_coords[i+1]) for i in range(0, len(scaled_coords), 2)]
-                draw.polygon(points, fill=color_rgba, outline=color_rgb + (150,), width=2)
+            try:
+                coords = shape["coordinates"]
+                color_hex = shape.get("color", "#FF0000")
+                shape_type = shape.get("type", "rectangle")
+                
+                # Check if this shape has a label with variable assignment
+                label = self.find_label_for_shape(idx)
+                if label:
+                    # Check each text line for variable assignments
+                    for i, text_line in enumerate(label.text_lines):
+                        # Check if this line has a variable assigned
+                        if i < len(label.line_variables):
+                            var_name = label.line_variables[i]
+                            if var_name and var_name != "None":
+                                # Find the variable
+                                variable = None
+                                for v in self.variables:
+                                    if v.name == var_name:
+                                        variable = v
+                                        break
+                                
+                                if variable:
+                                    # Extract numeric value from text
+                                    try:
+                                        # Remove commas and extract numbers
+                                        cleaned_text = text_line.replace(',', '').strip()
+                                        # Try to find a number in the text
+                                        import re
+                                        numbers = re.findall(r'-?\d+\.?\d*', cleaned_text)
+                                        if numbers:
+                                            value = float(numbers[0])
+                                            # Evaluate variable rules to get color
+                                            conditional_color = variable.evaluate(value)
+                                            if conditional_color:
+                                                color_hex = conditional_color
+                                                break  # Use first matching variable
+                                    except (ValueError, IndexError):
+                                        pass  # Keep default color if parsing fails
+                
+                # Convert hex to RGB and add alpha
+                color_rgb = tuple(int(color_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+                color_rgba = color_rgb + (80,)  # 80/255 = ~30% opacity
+                
+                if shape_type == "rectangle":
+                    # Scale coordinates
+                    scaled_coords = [c * self.zoom_factor for c in coords]
+                    draw.rectangle(scaled_coords, fill=color_rgba, outline=color_rgb + (150,), width=2)
+                elif shape_type == "polygon":
+                    # Scale coordinates
+                    scaled_coords = [c * self.zoom_factor for c in coords]
+                    points = [(scaled_coords[i], scaled_coords[i+1]) for i in range(0, len(scaled_coords), 2)]
+                    draw.polygon(points, fill=color_rgba, outline=color_rgb + (150,), width=2)
+                elif shape_type == "oval":
+                    # Oval coordinates: [x1, y1, x2, y2] (bounding box)
+                    scaled_coords = [c * self.zoom_factor for c in coords]
+                    draw.ellipse(scaled_coords, fill=color_rgba, outline=color_rgb + (150,), width=2)
+                elif shape_type == "circle":
+                    # Circle coordinates: [cx, cy, radius]
+                    cx, cy, radius = coords
+                    x1 = (cx - radius) * self.zoom_factor
+                    y1 = (cy - radius) * self.zoom_factor
+                    x2 = (cx + radius) * self.zoom_factor
+                    y2 = (cy + radius) * self.zoom_factor
+                    draw.ellipse([x1, y1, x2, y2], fill=color_rgba, outline=color_rgb + (150,), width=2)
+            except Exception as e:
+                # Log error but continue drawing other shapes
+                print(f"Error drawing shape {idx} ({shape.get('type', 'unknown')}): {e}")
+                continue
         
         # Composite overlay onto image
         image = image.convert('RGBA')
@@ -1566,6 +1584,22 @@ class LayoutTextLabeler:
             # Use ray casting algorithm
             points = [(coords[i], coords[i+1]) for i in range(0, len(coords), 2)]
             return self.point_in_polygon(point, points)
+        elif shape_type == "oval":
+            # Oval coordinates: [x1, y1, x2, y2] (bounding box)
+            x1, y1, x2, y2 = coords
+            # Check if point is inside the ellipse
+            cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+            rx, ry = abs(x2 - x1) / 2, abs(y2 - y1) / 2
+            if rx == 0 or ry == 0:
+                return False
+            # Ellipse equation: ((x-cx)/rx)^2 + ((y-cy)/ry)^2 <= 1
+            return ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1
+        elif shape_type == "circle":
+            # Circle coordinates: [cx, cy, radius]
+            cx, cy, radius = coords
+            # Check if point is within radius
+            distance = math.sqrt((x - cx)**2 + (y - cy)**2)
+            return distance <= radius
         
         return False
     
@@ -1653,6 +1687,45 @@ class LayoutTextLabeler:
                     nearest = nearest_on_segment
             
             return nearest
+        
+        elif shape_type == "oval":
+            # Oval coordinates: [x1, y1, x2, y2] (bounding box)
+            x1, y1, x2, y2 = coords
+            cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+            rx, ry = abs(x2 - x1) / 2, abs(y2 - y1) / 2
+            
+            # Calculate angle from center to point
+            dx = x - cx
+            dy = y - cy
+            
+            if dx == 0 and dy == 0:
+                # Point is at center, return right edge
+                return (cx + rx, cy)
+            
+            # Find point on ellipse boundary
+            # Parametric form: x = cx + rx*cos(t), y = cy + ry*sin(t)
+            angle = math.atan2(dy, dx)
+            nearest_x = cx + rx * math.cos(angle)
+            nearest_y = cy + ry * math.sin(angle)
+            return (nearest_x, nearest_y)
+        
+        elif shape_type == "circle":
+            # Circle coordinates: [cx, cy, radius]
+            cx, cy, radius = coords
+            
+            # Calculate angle from center to point
+            dx = x - cx
+            dy = y - cy
+            distance = math.sqrt(dx**2 + dy**2)
+            
+            if distance == 0:
+                # Point is at center, return any point on circle
+                return (cx + radius, cy)
+            
+            # Find point on circle boundary in direction of the point
+            nearest_x = cx + (dx / distance) * radius
+            nearest_y = cy + (dy / distance) * radius
+            return (nearest_x, nearest_y)
         
         return None
     
@@ -2210,6 +2283,17 @@ class LayoutTextLabeler:
             elif shape_type == "polygon":
                 points = [(offset_coords[i], offset_coords[i+1]) for i in range(0, len(offset_coords), 2)]
                 draw.polygon(points, fill=color_rgba, outline=color_rgb + (150,), width=2)
+            elif shape_type == "oval":
+                # Oval coordinates: [x1, y1, x2, y2] (bounding box)
+                draw.ellipse(offset_coords, fill=color_rgba, outline=color_rgb + (150,), width=2)
+            elif shape_type == "circle":
+                # Circle coordinates: [cx, cy, radius]
+                cx, cy, radius = coords
+                x1 = cx - radius + offset_x
+                y1 = cy - radius + offset_y
+                x2 = cx + radius + offset_x
+                y2 = cy + radius + offset_y
+                draw.ellipse([x1, y1, x2, y2], fill=color_rgba, outline=color_rgb + (150,), width=2)
         
         image = image.convert('RGBA')
         image = Image.alpha_composite(image, overlay)

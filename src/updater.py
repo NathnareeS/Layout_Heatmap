@@ -15,7 +15,7 @@ import subprocess
 import threading
 from pathlib import Path
 from datetime import datetime, timedelta
-from src.version import __version__, __github_repo__
+from version import __version__, __github_repo__
 
 
 class UpdateChecker:
