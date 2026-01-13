@@ -15,6 +15,7 @@ import matplotlib.colors as mcolors
 import json
 import os
 import io
+import random
 from typing import Dict, List, Tuple, Optional
 from typing import Dict, List, Tuple, Optional
 
@@ -68,6 +69,7 @@ class LayoutHeatmapApp:
         self.color_var = tk.StringVar(value=self.selected_color)
         self.opacity = 1.0  # Default opacity (0.0 to 1.0)
         self.opacity_var = tk.DoubleVar(value=self.opacity)
+        self.use_random_colors = True  # Use random colors by default
         
         # Callback for PDF loading (to sync with other apps)
         self.on_pdf_loaded = None
@@ -284,6 +286,16 @@ class LayoutHeatmapApp:
         
         self.opacity_label = ttk.Label(opacity_frame, text="100%")
         self.opacity_label.pack(side=tk.LEFT, padx=5)
+        
+        # Random color checkbox
+        self.random_color_var = tk.BooleanVar(value=self.use_random_colors)
+        self.random_color_checkbox = ttk.Checkbutton(
+            color_frame,
+            text="Use Random Colors",
+            variable=self.random_color_var,
+            command=self.toggle_random_colors
+        )
+        self.random_color_checkbox.pack(anchor=tk.W, pady=5)
         
         # Action buttons
         action_frame = ttk.LabelFrame(self.scrollable_control_frame, text="Actions", padding=10)
@@ -548,6 +560,10 @@ class LayoutHeatmapApp:
                     x1, y1 = self.image_to_canvas_coords(img_coords[0], img_coords[1])
                     x2, y2 = self.image_to_canvas_coords(img_coords[2], img_coords[3])
                     
+                    # Normalize coordinates to ensure x1 <= x2 and y1 <= y2
+                    x1, x2 = min(x1, x2), max(x1, x2)
+                    y1, y2 = min(y1, y2), max(y1, y2)
+                    
                     shape_id = self.canvas.create_rectangle(
                         x1, y1, x2, y2,
                         fill=color,
@@ -558,6 +574,10 @@ class LayoutHeatmapApp:
                 elif shape_type == "oval":
                     x1, y1 = self.image_to_canvas_coords(img_coords[0], img_coords[1])
                     x2, y2 = self.image_to_canvas_coords(img_coords[2], img_coords[3])
+                    
+                    # Normalize coordinates to ensure x1 <= x2 and y1 <= y2
+                    x1, x2 = min(x1, x2), max(x1, x2)
+                    y1, y2 = min(y1, y2), max(y1, y2)
                     
                     shape_id = self.canvas.create_oval(
                         x1, y1, x2, y2,
@@ -1111,6 +1131,14 @@ class LayoutHeatmapApp:
         else:
             self.status_var.set("Selection mode enabled - can select and move shapes")
     
+    def toggle_random_colors(self):
+        """Toggle between random colors and manual color selection"""
+        self.use_random_colors = self.random_color_var.get()
+        if self.use_random_colors:
+            self.status_var.set("Random colors enabled - each shape gets a unique color")
+        else:
+            self.status_var.set(f"Manual color selected - using {self.selected_color}")
+    
     def get_color_with_opacity(self):
         """Get the current color blended with white based on opacity"""
         try:
@@ -1167,6 +1195,12 @@ class LayoutHeatmapApp:
         # Convert screen coordinates to canvas coordinates accounting for zoom
         self.start_x = self.canvas.canvasx(event.x)
         self.start_y = self.canvas.canvasy(event.y)
+        
+        # Generate color for this shape - random or selected
+        if self.use_random_colors:
+            self.current_shape_color = self.get_random_color()
+        else:
+            self.current_shape_color = self.selected_color
     
     def draw_motion(self, event):
         """Handle drawing motion with live preview"""
@@ -1182,9 +1216,8 @@ class LayoutHeatmapApp:
         current_x = self.canvas.canvasx(event.x)
         current_y = self.canvas.canvasy(event.y)
         
-        # Create preview shape
-        color = self.get_color_with_opacity()
-        preview_color = self.lighten_color(color)  # Lighter color for preview
+        # Use the random color generated at start_drawing
+        preview_color = self.current_shape_color
         
         if self.current_tool == "rectangle":
             self.preview_shape = self.canvas.create_rectangle(
@@ -1214,6 +1247,7 @@ class LayoutHeatmapApp:
         
         # Update status with coordinates
         self.status_var.set(f"Drawing {self.current_tool}: ({int(self.start_x)}, {int(self.start_y)}) to ({int(current_x)}, {int(current_y)})")
+    
     
     def end_drawing(self, event):
         """Finish drawing a shape"""
@@ -1264,10 +1298,39 @@ class LayoutHeatmapApp:
         canvas_y = img_y * self.zoom_factor + 10
         return canvas_x, canvas_y
     
+    def get_random_color(self):
+        """Generate a random vibrant color for shapes"""
+        # Predefined palette of vibrant, distinct colors
+        color_palette = [
+            "#FF6B6B",  # Red
+            "#4ECDC4",  # Teal
+            "#45B7D1",  # Blue
+            "#FFA07A",  # Light Salmon
+            "#98D8C8",  # Mint
+            "#F7DC6F",  # Yellow
+            "#BB8FCE",  # Purple
+            "#85C1E2",  # Sky Blue
+            "#F8B88B",  # Peach
+            "#ABEBC6",  # Light Green
+            "#FAD7A0",  # Light Orange
+            "#D7BDE2",  # Lavender
+            "#A3E4D7",  # Aqua
+            "#F9E79F",  # Light Yellow
+            "#EDBB99",  # Tan
+            "#D98880",  # Rose
+            "#85929E",  # Gray Blue
+            "#A9DFBF",  # Pale Green
+            "#F5B7B1",  # Pink
+            "#AED6F1",  # Powder Blue
+        ]
+        
+        # Pick a random color from the palette
+        return random.choice(color_palette)
+    
     def create_shape(self, x1, y1, x2, y2):
         """Create a shape on the canvas"""
-        # Use selected color
-        color = self.get_color_with_opacity()
+        # Use the random color generated at start_drawing
+        random_color = self.current_shape_color
         
         # Store coordinates in image space for saving/loading
         img_x1, img_y1 = self.canvas_to_image_coords(x1, y1)
@@ -1276,7 +1339,7 @@ class LayoutHeatmapApp:
         shape_data = {
             "type": self.current_tool,
             "coordinates": (img_x1, img_y1, img_x2, img_y2),  # Store in image coordinates
-            "color": color,
+            "color": random_color,
             "stipple": self.get_stipple_pattern()
         }
         
@@ -1284,7 +1347,7 @@ class LayoutHeatmapApp:
         if self.current_tool == "rectangle":
             shape_id = self.canvas.create_rectangle(
                 x1, y1, x2, y2,
-                fill=color,
+                fill=random_color,
                 outline="",
                 width=0,
                 stipple=self.get_stipple_pattern()
@@ -1294,7 +1357,7 @@ class LayoutHeatmapApp:
             print(f"Creating oval with opacity: {self.opacity_var.get()}, stipple: '{stipple}'")
             shape_id = self.canvas.create_oval(
                 x1, y1, x2, y2,
-                fill=color,
+                fill=random_color,
                 outline="",
                 width=0,
                 stipple=stipple
@@ -1313,7 +1376,7 @@ class LayoutHeatmapApp:
         
         self.update_shape_list()  # Update shape list
         
-        self.status_var.set(f"Created {self.current_tool} with color {self.selected_color} (opacity: {int(self.opacity * 100)}%)")
+        self.status_var.set(f"Created {self.current_tool} with random color (opacity: {int(self.opacity * 100)}%)")
     
     def clear_all(self, save_state=True):
         """Clear all drawn shapes"""
@@ -1605,6 +1668,11 @@ class LayoutHeatmapApp:
             self.drawing_polygon = True
             self.polygon_points = [(x, y)]
             self.polygon_lines = []
+            # Generate color for this polygon - random or selected
+            if self.use_random_colors:
+                self.current_shape_color = self.get_random_color()
+            else:
+                self.current_shape_color = self.selected_color
             self.status_var.set("Click to add points, click near start to close polygon")
         else:
             # Check if clicking near start point to close polygon
@@ -1629,6 +1697,7 @@ class LayoutHeatmapApp:
                 )
                 self.polygon_lines.append(line_id)
     
+    
     def close_polygon(self):
         """Close the polygon and create filled shape"""
         if len(self.polygon_points) < 3:
@@ -1643,11 +1712,13 @@ class LayoutHeatmapApp:
             img_x, img_y = self.canvas_to_image_coords(x, y)
             img_points.extend([img_x, img_y])
         
+        # Use the random color generated when starting the polygon
+        random_color = self.current_shape_color
+        
         # Create filled polygon
-        color = self.get_color_with_opacity()
         polygon_id = self.canvas.create_polygon(
             [coord for point in self.polygon_points for coord in point],
-            fill=color,
+            fill=random_color,
             outline="",
             width=0,
             stipple=self.get_stipple_pattern()
@@ -1657,7 +1728,7 @@ class LayoutHeatmapApp:
         shape_data = {
             "type": "polygon",
             "coordinates": img_points,
-            "color": color,
+            "color": random_color,
             "stipple": self.get_stipple_pattern(),
             "canvas_id": polygon_id
         }
@@ -1673,7 +1744,7 @@ class LayoutHeatmapApp:
         self.polygon_points = []
         self.polygon_lines = []
         
-        self.status_var.set(f"Created polygon with color {self.selected_color} (opacity: {int(self.opacity * 100)}%)")
+        self.status_var.set(f"Created polygon with random color (opacity: {int(self.opacity * 100)}%)")
 
 
 def main():
