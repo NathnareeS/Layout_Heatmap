@@ -191,26 +191,51 @@ class LayoutHeatmapApp:
         
         # Shape List section
         shape_list_frame = ttk.LabelFrame(self.scrollable_control_frame, text="Shapes", padding=10)
-        shape_list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        shape_list_frame.pack(fill=tk.X, pady=(0, 10))  # Changed from BOTH to X to prevent over-expansion
         
-        # Shape listbox with scrollbar
-        list_container = ttk.Frame(shape_list_frame)
-        list_container.pack(fill=tk.BOTH, expand=True)
+        # Shape listbox with scrollbar - fixed height container
+        list_container = ttk.Frame(shape_list_frame, height=200)  # Set minimum height
+        list_container.pack(fill=tk.BOTH, expand=False)  # Don't expand to prevent overlap
+        list_container.pack_propagate(False)  # Maintain the fixed height
         
-        shape_scrollbar = ttk.Scrollbar(list_container)
+        # Create scrollbar first
+        shape_scrollbar = ttk.Scrollbar(list_container, orient=tk.VERTICAL)
         shape_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
+        # Create listbox with scrollbar
         self.shape_listbox = tk.Listbox(
             list_container,
             yscrollcommand=shape_scrollbar.set,
             font=("Arial", 10),
-            height=8
+            selectmode=tk.SINGLE,
+            activestyle='dotbox'
         )
         self.shape_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Configure scrollbar to control listbox
         shape_scrollbar.config(command=self.shape_listbox.yview)
         
         # Bind selection event
         self.shape_listbox.bind("<<ListboxSelect>>", self.on_shape_list_select)
+        
+        # Add mousewheel scrolling for shape listbox
+        def on_shape_listbox_mousewheel(event):
+            self.shape_listbox.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind mousewheel to listbox and container
+        self.shape_listbox.bind("<MouseWheel>", on_shape_listbox_mousewheel)
+        list_container.bind("<MouseWheel>", on_shape_listbox_mousewheel)
+        
+        # Enable mousewheel when mouse enters the listbox area
+        def on_enter_listbox(event):
+            self.shape_listbox.bind("<MouseWheel>", on_shape_listbox_mousewheel)
+        
+        def on_leave_listbox(event):
+            # Keep the binding active even when leaving
+            pass
+        
+        self.shape_listbox.bind("<Enter>", on_enter_listbox)
+        list_container.bind("<Enter>", on_enter_listbox)
         
         # Buttons frame
         shape_btn_frame = ttk.Frame(shape_list_frame)

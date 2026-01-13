@@ -321,6 +321,14 @@ class LayoutTextLabeler:
         self.shape_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         shape_scrollbar.config(command=self.shape_listbox.yview)
         
+        # Add mousewheel scrolling for shape listbox
+        def on_shape_listbox_mousewheel(event):
+            self.shape_listbox.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind mousewheel to listbox and container
+        self.shape_listbox.bind("<MouseWheel>", on_shape_listbox_mousewheel)
+        list_container.bind("<MouseWheel>", on_shape_listbox_mousewheel)
+        
         self.shape_listbox.bind("<<ListboxSelect>>", self.on_shape_select)
         
         # ===== DEFAULT SETTINGS SECTION =====
