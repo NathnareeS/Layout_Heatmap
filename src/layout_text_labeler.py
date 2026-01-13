@@ -299,11 +299,34 @@ class LayoutTextLabeler:
         left_panel.bind("<Configure>", configure_scroll_region)
         canvas.bind("<Configure>", configure_scroll_region)
         
-        # Enable mousewheel scrolling
+        # Store references to widgets that should handle their own scrolling
+        self.scrollable_widgets = []
+        
+        # Enable mousewheel scrolling for the main left panel
+        # Individual components (shape list, text editor) will handle their own scrolling
+        # when the mouse is directly over them
         def on_mousewheel(event):
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
-        canvas.bind_all("<MouseWheel>", on_mousewheel)
+        # Bind to canvas and left panel
+        canvas.bind("<MouseWheel>", on_mousewheel)
+        left_panel.bind("<MouseWheel>", on_mousewheel)
+        
+        # Recursively bind mousewheel to all child widgets EXCEPT scrollable components
+        def bind_mousewheel_to_children(widget):
+            # Skip widgets that handle their own scrolling
+            if widget in self.scrollable_widgets:
+                return
+            # Skip Listbox and Canvas widgets (they have their own scrolling)
+            if isinstance(widget, (tk.Listbox, tk.Canvas)):
+                return
+            
+            widget.bind("<MouseWheel>", on_mousewheel)
+            for child in widget.winfo_children():
+                bind_mousewheel_to_children(child)
+        
+        # Bind after a short delay to ensure all widgets are created
+        left_panel.after(100, lambda: bind_mousewheel_to_children(left_panel))
         
         # Shape list
         shape_list_frame = ttk.LabelFrame(left_panel, text="Shapes", padding=10)
@@ -395,6 +418,15 @@ class LayoutTextLabeler:
         # Update scroll region when container changes
         self.text_entries_container.bind("<Configure>", 
                                         lambda e: scroll_canvas.configure(scrollregion=scroll_canvas.bbox("all")))
+        
+        # Add mousewheel scrolling for text editor
+        def on_text_editor_mousewheel(event):
+            scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind mousewheel to scroll canvas and text entries container
+        scroll_canvas.bind("<MouseWheel>", on_text_editor_mousewheel)
+        self.text_entries_container.bind("<MouseWheel>", on_text_editor_mousewheel)
+        scroll_frame.bind("<MouseWheel>", on_text_editor_mousewheel)
         
         # Add text line button
         ttk.Button(editor_frame, text="+ Add Text Line", command=self.add_text_line, width=20).pack(pady=5)
