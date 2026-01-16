@@ -366,7 +366,8 @@ class LayoutHeatmapApp:
         instructions = [
             "• Select tool: Click and move shapes",
             "• Left click + drag: Draw shapes",
-            "• Polygon: Click to add points, close to start to fill",
+            "• Polygon: Click and drag to draw lines",
+            "• Hold Shift: Draw straight polygon lines",
             "• Right click + drag: Pan view",
             "• Mouse wheel: Zoom in/out",
             "• Ctrl+Z: Undo last action",
@@ -417,8 +418,8 @@ class LayoutHeatmapApp:
         self.canvas.bind("<ButtonRelease-3>", self.end_pan)
         self.canvas.bind("<MouseWheel>", self.zoom_canvas)  # Mouse wheel zoom
         
-        # Bind escape key to cancel drawing
-        self.root.bind("<Escape>", self.cancel_drawing)
+        # Bind escape key to cancel drawing (bind to canvas so it works in embedded mode)
+        self.canvas.bind("<Escape>", self.cancel_drawing)
         self.root.bind("<Control-z>", self.undo_action)
         self.root.bind("<Delete>", self.delete_selected)
         self.root.bind("<BackSpace>", self.delete_selected)
@@ -654,8 +655,8 @@ class LayoutHeatmapApp:
             # Selection mode
             self.handle_selection(canvas_x, canvas_y)
         elif self.current_tool == "polygon":
-            # Polygon drawing mode
-            self.handle_polygon_click(canvas_x, canvas_y)
+            # Polygon drawing mode - start drawing on mouse down
+            self.start_polygon_point(canvas_x, canvas_y, event)
         else:
             # Regular drawing mode
             self.clear_selection()
@@ -667,6 +668,9 @@ class LayoutHeatmapApp:
             self.resize_selected_shape(event)
         elif self.current_tool == "select" and self.moving_shape:
             self.move_selected_shape(event)
+        elif self.current_tool == "polygon" and self.drawing_polygon:
+            # Show live preview while dragging polygon line
+            self.polygon_drag_motion(event)
         elif self.drawing:
             self.draw_motion(event)
     
@@ -676,6 +680,9 @@ class LayoutHeatmapApp:
             self.finish_resize()
         elif self.moving_shape:
             self.finish_move()
+        elif self.current_tool == "polygon" and self.drawing_polygon:
+            # Finalize polygon point on mouse release
+            self.polygon_drag_release(event)
         elif self.drawing:
             self.end_drawing(event)
     
@@ -1103,24 +1110,33 @@ class LayoutHeatmapApp:
     
     def cancel_drawing(self, event=None):
         """Cancel current drawing operation"""
-        if self.drawing:
-            self.drawing = False
-            self.canvas.delete("preview")
-            self.status_var.set("Drawing cancelled")
-    
-    def cancel_drawing(self, event=None):
-        """Cancel current drawing operation"""
-        if self.drawing:
-            self.drawing = False
-            self.canvas.delete("preview")
-            self.status_var.set("Drawing cancelled")
-        """Cancel current drawing operation"""
+        # Cancel regular shape drawing (rectangle, oval)
         if self.drawing:
             self.drawing = False
             if self.preview_shape:
                 self.canvas.delete(self.preview_shape)
                 self.preview_shape = None
-            self.status_var.set("Drawing cancelled - Press Escape to cancel anytime")
+            self.canvas.delete("preview")
+            self.status_var.set("Drawing cancelled")
+        
+        # Cancel polygon drawing
+        if self.drawing_polygon:
+            # Clear all temporary polygon lines
+            self.canvas.delete("temp_polygon")
+            
+            # Clear preview line
+            if hasattr(self, 'polygon_preview_line') and self.polygon_preview_line:
+                self.canvas.delete(self.polygon_preview_line)
+                self.polygon_preview_line = None
+            
+            # Reset polygon state
+            self.drawing_polygon = False
+            self.polygon_points = []
+            self.polygon_lines = []
+            
+            self.status_var.set("Polygon drawing cancelled")
+    
+    
     
     def change_tool(self):
         """Change the current drawing tool"""
@@ -1687,19 +1703,22 @@ class LayoutHeatmapApp:
         
         return pattern
     
-    def handle_polygon_click(self, x, y):
-        """Handle polygon drawing clicks"""
+    def start_polygon_point(self, x, y, event):
+        """Start drawing a polygon point (on mouse down)"""
         if not self.drawing_polygon:
             # Start new polygon
             self.drawing_polygon = True
             self.polygon_points = [(x, y)]
             self.polygon_lines = []
+            self.polygon_preview_line = None  # For live preview during drag
+            
             # Generate color for this polygon - random or selected
             if self.use_random_colors:
                 self.current_shape_color = self.get_random_color()
             else:
                 self.current_shape_color = self.selected_color
-            self.status_var.set("Click to add points, click near start to close polygon")
+            
+            self.status_var.set("Drag to draw line, hold Shift for straight lines, click near start to close")
         else:
             # Check if clicking near start point to close polygon
             start_x, start_y = self.polygon_points[0]
@@ -1708,20 +1727,112 @@ class LayoutHeatmapApp:
             if distance < 20 and len(self.polygon_points) >= 3:
                 # Close polygon and fill
                 self.close_polygon()
+                return
+            
+            # Otherwise, start dragging for next line
+            # (the actual point will be added on mouse release)
+    
+    def polygon_drag_motion(self, event):
+        """Show live preview while dragging polygon line"""
+        if not self.drawing_polygon or not self.polygon_points:
+            return
+        
+        # Get current mouse position
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
+        
+        # Get the last point
+        prev_x, prev_y = self.polygon_points[-1]
+        
+        # Check if Shift key is held (state & 0x0001 for Shift modifier)
+        shift_held = event.state & 0x0001
+        
+        # If Shift is held, constrain to horizontal or vertical
+        if shift_held:
+            dx = abs(canvas_x - prev_x)
+            dy = abs(canvas_y - prev_y)
+            
+            # Snap to horizontal or vertical based on which direction is larger
+            if dx > dy:
+                # More horizontal movement - snap to horizontal line
+                canvas_y = prev_y
             else:
-                # Add new point
-                prev_x, prev_y = self.polygon_points[-1]
-                self.polygon_points.append((x, y))
-                
-                # Draw line segment
-                line_id = self.canvas.create_line(
-                    prev_x, prev_y, x, y,
-                    fill="gray",
-                    width=2,
-                    dash=(5, 5),
-                    tags="temp_polygon"
-                )
-                self.polygon_lines.append(line_id)
+                # More vertical movement - snap to vertical line
+                canvas_x = prev_x
+        
+        # Remove previous preview line
+        if self.polygon_preview_line:
+            self.canvas.delete(self.polygon_preview_line)
+        
+        # Draw preview line
+        self.polygon_preview_line = self.canvas.create_line(
+            prev_x, prev_y, canvas_x, canvas_y,
+            fill=self.current_shape_color,
+            width=3,
+            dash=(5, 5),
+            tags="polygon_preview"
+        )
+    
+    def polygon_drag_release(self, event):
+        """Finalize polygon point on mouse release"""
+        if not self.drawing_polygon or not self.polygon_points:
+            return
+        
+        # Get current mouse position
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
+        
+        # Get the last point
+        prev_x, prev_y = self.polygon_points[-1]
+        
+        # Check if Shift key is held (state & 0x0001 for Shift modifier)
+        shift_held = event.state & 0x0001
+        
+        # If Shift is held, constrain to horizontal or vertical
+        if shift_held:
+            dx = abs(canvas_x - prev_x)
+            dy = abs(canvas_y - prev_y)
+            
+            # Snap to horizontal or vertical based on which direction is larger
+            if dx > dy:
+                # More horizontal movement - snap to horizontal line
+                canvas_y = prev_y
+            else:
+                # More vertical movement - snap to vertical line
+                canvas_x = prev_x
+        
+        # Check if releasing near start point to close polygon
+        start_x, start_y = self.polygon_points[0]
+        distance = ((canvas_x - start_x) ** 2 + (canvas_y - start_y) ** 2) ** 0.5
+        
+        if distance < 20 and len(self.polygon_points) >= 3:
+            # Remove preview line
+            if self.polygon_preview_line:
+                self.canvas.delete(self.polygon_preview_line)
+                self.polygon_preview_line = None
+            
+            # Close polygon and fill
+            self.close_polygon()
+            return
+        
+        # Add the new point
+        self.polygon_points.append((canvas_x, canvas_y))
+        
+        # Remove preview line
+        if self.polygon_preview_line:
+            self.canvas.delete(self.polygon_preview_line)
+            self.polygon_preview_line = None
+        
+        # Draw permanent line segment
+        line_id = self.canvas.create_line(
+            prev_x, prev_y, canvas_x, canvas_y,
+            fill="gray",
+            width=2,
+            dash=(5, 5),
+            tags="temp_polygon"
+        )
+        self.polygon_lines.append(line_id)
+    
     
     
     def close_polygon(self):
