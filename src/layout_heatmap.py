@@ -1114,14 +1114,36 @@ class LayoutHeatmapApp:
             # Restore previous state
             prev_state = self.history[self.history_index]
             
-            # Clear current shapes
-            self.clear_all(save_state=False)
+            # Clear current shapes from canvas
+            for shape in self.shapes:
+                if "canvas_id" in shape:
+                    try:
+                        self.canvas.delete(shape["canvas_id"])
+                    except:
+                        pass
+                if "selection_id" in shape:
+                    try:
+                        self.canvas.delete(shape["selection_id"])
+                    except:
+                        pass
             
-            # Restore shapes
-            self.shapes = [shape.copy() for shape in prev_state["shapes"]]
+            # Clear selection
+            self.clear_selection()
             
-            # Redraw
+            # Restore shapes (make deep copies and remove old canvas_ids)
+            self.shapes = []
+            for shape in prev_state["shapes"]:
+                new_shape = shape.copy()
+                # Remove old canvas_id and selection_id so redraw creates new ones
+                new_shape.pop("canvas_id", None)
+                new_shape.pop("selection_id", None)
+                self.shapes.append(new_shape)
+            
+            # Redraw all shapes
             self.redraw_shapes()
+            
+            # Update shape list
+            self.update_shape_list()
             
             self.status_var.set(f"Undone: {prev_state.get('action', 'Unknown action')}")
         else:
