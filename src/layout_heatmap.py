@@ -1414,6 +1414,7 @@ class LayoutHeatmapApp:
         
         self.shapes.clear()
         self.clear_selection()
+        self.update_shape_list()  # Update the shape listbox to reflect cleared shapes
         self.status_var.set("All shapes cleared")
     
     def save_layout(self):
