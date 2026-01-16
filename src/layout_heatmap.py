@@ -1765,6 +1765,9 @@ class LayoutHeatmapApp:
         # Then save state for undo (after adding shape)
         self.save_state("Create polygon")
         
+        # Update the shape listbox to show the new polygon
+        self.update_shape_list()
+        
         # Reset polygon drawing state
         self.drawing_polygon = False
         self.polygon_points = []
