@@ -917,27 +917,46 @@ class LayoutHeatmapApp:
         """Finish moving a shape and update its coordinates"""
         if self.selected_shape and self.moving_shape:
             try:
-                # Get new canvas coordinates
+                # Get canvas ID
                 canvas_id = self.selected_shape["canvas_id"]
-                bbox = self.canvas.bbox(canvas_id)
+                shape_type = self.selected_shape["type"]
                 
-                if bbox:
-                    x1, y1, x2, y2 = bbox
+                # Save action for undo
+                self.save_state(f"Move {shape_type}")
+                
+                if shape_type == "polygon":
+                    # For polygons, get all coordinates from canvas
+                    canvas_coords = self.canvas.coords(canvas_id)
                     
-                    # Convert to image coordinates
-                    img_x1, img_y1 = self.canvas_to_image_coords(x1, y1)
-                    img_x2, img_y2 = self.canvas_to_image_coords(x2, y2)
-                    
-                    # Save action for undo
-                    self.save_state(f"Move {self.selected_shape['type']}")
+                    # Convert all canvas coordinates to image coordinates
+                    img_coords = []
+                    for i in range(0, len(canvas_coords), 2):
+                        canvas_x, canvas_y = canvas_coords[i], canvas_coords[i + 1]
+                        img_x, img_y = self.canvas_to_image_coords(canvas_x, canvas_y)
+                        img_coords.extend([img_x, img_y])
                     
                     # Update coordinates
-                    self.selected_shape["coordinates"] = [img_x1, img_y1, img_x2, img_y2]
+                    self.selected_shape["coordinates"] = img_coords
+                else:
+                    # For rectangles, ovals, and lines - use bounding box
+                    bbox = self.canvas.bbox(canvas_id)
                     
-                    self.status_var.set(f"Moved {self.selected_shape['type']}")
+                    if bbox:
+                        x1, y1, x2, y2 = bbox
+                        
+                        # Convert to image coordinates
+                        img_x1, img_y1 = self.canvas_to_image_coords(x1, y1)
+                        img_x2, img_y2 = self.canvas_to_image_coords(x2, y2)
+                        
+                        # Update coordinates
+                        self.selected_shape["coordinates"] = [img_x1, img_y1, img_x2, img_y2]
+                
+                self.status_var.set(f"Moved {shape_type}")
             except Exception as e:
                 # If there's an error, just redraw everything
                 print(f"Error finishing move: {e}")
+                import traceback
+                traceback.print_exc()
                 self.redraw_shapes()
         
         self.moving_shape = False
