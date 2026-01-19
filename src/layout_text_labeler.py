@@ -162,9 +162,10 @@ class LayoutTextLabeler:
         self.last_imported_df = None  # Store last imported Excel/CSV data
         self.current_mapping = {}  # Store current shape-to-row mapping {shape_idx: excel_row_idx}
         
-        # Undo functionality
+        # Undo/Redo system
         self.undo_stack = []  # Stack to store previous states for undo
         self.max_undo_steps = 20  # Maximum number of undo steps to keep
+        self.redo_stack = []  # Stack to store states for redo
         
         self.setup_ui()
     
@@ -199,79 +200,59 @@ class LayoutTextLabeler:
     
     def setup_toolbar(self, parent):
         """Setup the toolbar with file operations"""
-        toolbar = tk.Frame(parent, bg="#ffffff", relief=tk.FLAT, bd=0)
-        toolbar.pack(fill=tk.X, pady=(0, 10))
+        toolbar = tk.Frame(parent, bg="#f0f0f0", height=50, relief=tk.RAISED, bd=1)
+        toolbar.pack(side=tk.TOP, fill=tk.X)
+        toolbar.pack_propagate(False)
         
-        # Add subtle shadow
-        shadow = tk.Frame(parent, bg="#d0d0d0", height=2)
-        shadow.place(in_=toolbar, x=0, rely=1, relwidth=1)
-        toolbar.lift()
-        
-        # Title label on the left
-        title_label = tk.Label(
-            toolbar,
-            text="📝 Text Labeler",
-            font=("Segoe UI", 14, "bold"),
-            fg="#2c3e50",
-            bg="#ffffff"
-        )
-        title_label.pack(side=tk.LEFT, padx=15, pady=8)
-        
-        # Separator
-        sep1 = tk.Frame(toolbar, bg="#bdc3c7", width=2)
-        sep1.pack(side=tk.LEFT, fill=tk.Y, padx=8, pady=8)
-        
-        # Modern button style helper
+        # Helper function to create toolbar buttons
         def create_toolbar_button(text, command, icon=""):
             btn = tk.Button(
                 toolbar,
                 text=f"{icon} {text}" if icon else text,
                 command=command,
-                bg="#3498db",
-                fg="white",
-                font=("Segoe UI", 9, "bold"),
+                bg="#f0f0f0",
+                fg="#333",
+                font=("Segoe UI", 9),
+                padx=15,
+                pady=8,
                 relief=tk.FLAT,
                 bd=0,
-                padx=12,
-                pady=8,
                 cursor="hand2",
-                activebackground="#2980b9",
-                activeforeground="white"
+                activebackground="#e0e0e0"
             )
             
             def on_enter(e):
-                btn.config(bg="#2980b9")
+                btn.config(bg="#e0e0e0")
             def on_leave(e):
-                btn.config(bg="#3498db")
+                btn.config(bg="#f0f0f0")
             
             btn.bind("<Enter>", on_enter)
             btn.bind("<Leave>", on_leave)
             
             return btn
         
-        # File operations
-        create_toolbar_button("💾 Save", self.save_labels).pack(side=tk.LEFT, padx=2, pady=8)
-        create_toolbar_button("📂 Load", self.load_labels).pack(side=tk.LEFT, padx=2, pady=8)
-        create_toolbar_button("📊 Import Excel/CSV", self.import_excel_csv).pack(side=tk.LEFT, padx=2, pady=8)
-        create_toolbar_button("🔄 Remap", self.remap_shapes).pack(side=tk.LEFT, padx=2, pady=8)
-        create_toolbar_button("🗑️ Clear", self.clear_all_labels).pack(side=tk.LEFT, padx=2, pady=8)
+        # Undo/Redo buttons
+        create_toolbar_button("Undo", self.undo_last_change, "↶").pack(side=tk.LEFT, padx=2, pady=5)
+        create_toolbar_button("Redo", self.redo_last_change, "↷").pack(side=tk.LEFT, padx=2, pady=5)
         
         # Separator
-        sep = tk.Frame(toolbar, bg="#bdc3c7", width=2)
-        sep.pack(side=tk.LEFT, fill=tk.Y, padx=8, pady=8)
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=8)
         
-        create_toolbar_button("🖼️ Export", self.export_image).pack(side=tk.LEFT, padx=2, pady=8)
+        # File operations
+        create_toolbar_button("Save", self.save_labels, "💾").pack(side=tk.LEFT, padx=2, pady=5)
+        create_toolbar_button("Load", self.load_labels, "📂").pack(side=tk.LEFT, padx=2, pady=5)
+        create_toolbar_button("Import Excel/CSV", self.import_excel_csv, "📊").pack(side=tk.LEFT, padx=2, pady=5)
+        create_toolbar_button("Remap", self.remap_shapes, "🔄").pack(side=tk.LEFT, padx=2, pady=5)
+        create_toolbar_button("Clear", self.clear_all_labels, "🗑️").pack(side=tk.LEFT, padx=2, pady=5)
         
-        # File info
+        # Separator
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=8)
+        
+        # Export button
+        create_toolbar_button("Export", self.export_image, "🖼️").pack(side=tk.LEFT, padx=2, pady=5)
+        
+        # Initialize file_info_var (used elsewhere in the code)
         self.file_info_var = tk.StringVar(value="No files loaded")
-        info_label = tk.Label(
-            toolbar,
-            textvariable=self.file_info_var,
-            font=("Segoe UI", 9),
-            fg="#7f8c8d",
-            bg="#ffffff"
-        )
-        info_label.pack(side=tk.LEFT, padx=15)
     
     def setup_left_panel(self, parent):
         """Setup the left panel with shape list and text editor"""
@@ -564,6 +545,7 @@ class LayoutTextLabeler:
         self.canvas.bind("<B3-Motion>", self.pan_motion)
         self.canvas.bind("<ButtonRelease-3>", self.end_pan)
         self.canvas.bind("<MouseWheel>", self.zoom_canvas)
+        self.canvas.focus_set()  # Allow canvas to receive key events
         
         # Instructions
         instruction_text = "Load a PDF file and JSON shapes file to begin labeling"
@@ -1278,8 +1260,11 @@ class LayoutTextLabeler:
             messagebox.showinfo("Info", "No label selected to delete")
     
     def save_state_for_undo(self):
-        """Save current state to undo stack before making changes"""
+        """Save current state for undo functionality"""
         import copy
+        
+        # Clear redo stack when new action is performed
+        self.redo_stack.clear()
         
         # Create deep copy of labels
         labels_copy = []
@@ -1325,7 +1310,16 @@ class LayoutTextLabeler:
             messagebox.showinfo("Info", "Nothing to undo")
             return
         
-        # Pop last state from stack
+        # Save current state to redo stack before undoing
+        import copy
+        current_state = {
+            'labels': copy.deepcopy(self.labels),
+            'shapes': copy.deepcopy(self.shapes),
+            'selected_shape_index': self.selected_shape_index
+        }
+        self.redo_stack.append(current_state)
+        
+        # Pop last state from undo stack
         state = self.undo_stack.pop()
         
         # Restore labels
@@ -1347,6 +1341,47 @@ class LayoutTextLabeler:
         
         # Update status
         self.status_var.set("Undo successful")
+        
+        # Update undo button state
+        self.update_undo_button_state()
+    
+    def redo_last_change(self):
+        """Redo the last undone change"""
+        if not self.redo_stack:
+            messagebox.showinfo("Info", "Nothing to redo")
+            return
+        
+        # Save current state to undo stack before redoing
+        import copy
+        current_state = {
+            'labels': copy.deepcopy(self.labels),
+            'shapes': copy.deepcopy(self.shapes),
+            'selected_shape_index': self.selected_shape_index
+        }
+        self.undo_stack.append(current_state)
+        
+        # Pop last state from redo stack
+        state = self.redo_stack.pop()
+        
+        # Restore labels
+        self.labels = state['labels']
+        
+        # Restore shapes
+        self.shapes = state['shapes']
+        
+        # Restore selected shape index
+        self.selected_shape_index = state['selected_shape_index']
+        
+        # Clear selected label
+        self.selected_label = None
+        
+        # Update UI
+        self.clear_text_editor()
+        self.update_shape_list()
+        self.display_canvas()
+        
+        # Update status
+        self.status_var.set("Redo successful")
         
         # Update undo button state
         self.update_undo_button_state()

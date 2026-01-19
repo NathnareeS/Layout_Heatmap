@@ -71,6 +71,10 @@ class LayoutHeatmapApp:
         self.opacity_var = tk.DoubleVar(value=self.opacity)
         self.use_random_colors = True  # Use random colors by default
         
+        # Zoom display
+        self.zoom_var = tk.StringVar()
+        self.zoom_var.set("Zoom: 100%")
+        
         # Callback for PDF loading (to sync with other apps)
         self.on_pdf_loaded = None
         
@@ -85,18 +89,86 @@ class LayoutHeatmapApp:
             except:
                 pass
         
-        # Main frame
-        main_frame = tk.Frame(self.root, bg="#f5f7fa")
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # Main container
+        main_container = ttk.Frame(self.root)
+        main_container.pack(fill=tk.BOTH, expand=True)
         
-        # Control panel (left side)
-        self.setup_control_panel(main_frame)
+        # Setup toolbar at the top
+        self.setup_toolbar(main_container)
         
-        # Canvas area (right side)
-        self.setup_canvas_area(main_frame)
+        # Content area (control panel + canvas)
+        content_frame = ttk.Frame(main_container)
+        content_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Status bar
+        # Setup control panel and canvas
+        self.setup_control_panel(content_frame)
+        self.setup_canvas_area(content_frame)
+        
+        # Setup status bar
         self.setup_status_bar()
+    
+    def setup_toolbar(self, parent):
+        """Setup the toolbar with quick access buttons"""
+        toolbar = tk.Frame(parent, bg="#f0f0f0", height=50, relief=tk.RAISED, bd=1)
+        toolbar.pack(side=tk.TOP, fill=tk.X)
+        toolbar.pack_propagate(False)
+        
+        # Helper function to create toolbar buttons
+        def create_toolbar_button(text, command, icon=""):
+            btn = tk.Button(
+                toolbar,
+                text=f"{icon} {text}" if icon else text,
+                command=command,
+                bg="#f0f0f0",
+                fg="#333",
+                font=("Segoe UI", 9),
+                padx=15,
+                pady=8,
+                relief=tk.FLAT,
+                bd=0,
+                cursor="hand2",
+                activebackground="#e0e0e0"
+            )
+            
+            def on_enter(e):
+                btn.config(bg="#e0e0e0")
+            def on_leave(e):
+                btn.config(bg="#f0f0f0")
+            
+            btn.bind("<Enter>", on_enter)
+            btn.bind("<Leave>", on_leave)
+            
+            return btn
+        
+        # Undo button
+        undo_btn = create_toolbar_button("Undo", self.undo_action, "↶")
+        undo_btn.pack(side=tk.LEFT, padx=2, pady=5)
+        
+        # Redo button
+        redo_btn = create_toolbar_button("Redo", self.redo_action, "↷")
+        redo_btn.pack(side=tk.LEFT, padx=2, pady=5)
+        
+        # Separator
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=8)
+        
+        # Delete button
+        delete_btn = create_toolbar_button("Delete", self.delete_selected, "🗑")
+        delete_btn.pack(side=tk.LEFT, padx=2, pady=5)
+        
+        # Separator
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=8)
+        
+        # Save Layout button
+        save_btn = create_toolbar_button("Save Layout", self.save_layout, "💾")
+        save_btn.pack(side=tk.LEFT, padx=2, pady=5)
+        
+        # Clear Layout button
+        clear_btn = create_toolbar_button("Clear Layout", self.clear_all, "🗑")
+        clear_btn.pack(side=tk.LEFT, padx=2, pady=5)
+        
+        # Export Image button
+        export_btn = create_toolbar_button("Export Image", self.export_image, "📷")
+        export_btn.pack(side=tk.LEFT, padx=2, pady=5)
     
     def setup_control_panel(self, parent):
         """Setup the control panel with file operations and tools"""
@@ -145,7 +217,8 @@ class LayoutHeatmapApp:
         
         def on_leave_control_area(event):
             # Return focus to canvas when mouse leaves control area
-            self.canvas.focus_set()
+            if hasattr(self, 'canvas'):
+                self.canvas.focus_set()
         
         self.control_canvas.bind("<Enter>", on_enter_control_area)
         self.control_canvas.bind("<Leave>", on_leave_control_area)
@@ -164,16 +237,6 @@ class LayoutHeatmapApp:
             width=20
         )
         self.browse_btn.pack(pady=5)
-        
-        # Process button
-        self.process_btn = ttk.Button(
-            file_frame, 
-            text="Process PDF", 
-            command=self.process_pdf,
-            state="disabled",
-            width=20
-        )
-        self.process_btn.pack(pady=5)
         
         # Load JSON Shapes button
         self.load_json_btn = ttk.Button(
@@ -251,23 +314,48 @@ class LayoutHeatmapApp:
         tools_frame = ttk.LabelFrame(self.scrollable_control_frame, text="Drawing Tools", padding=10)
         tools_frame.pack(fill=tk.X, pady=(0, 10))
         
-        # Tool selection
+        # Tool selection with bigger icons and smaller text
         self.tool_var = tk.StringVar(value="rectangle")
         tools = [
-            ("Select/Move", "select"),
-            ("Rectangle", "rectangle"),
-            ("Circle/Oval", "oval"),
-            ("Polygon/Line", "polygon")
+            ("🖱️", "Select/Move", "select"),
+            ("▭", "Rectangle", "rectangle"),
+            ("⬭", "Circle/Oval", "oval"),
+            ("⬟", "Polygon/Line", "polygon")
         ]
         
-        for text, value in tools:
-            ttk.Radiobutton(
-                tools_frame, 
-                text=text, 
+        # Use a default background color for ttk widgets
+        default_bg = "#f0f0f0"
+        
+        for icon, label, value in tools:
+            # Create frame for each tool
+            tool_frame = tk.Frame(tools_frame, bg=default_bg)
+            tool_frame.pack(anchor=tk.W, pady=2, fill=tk.X)
+            
+            # Radio button with big icon
+            rb = tk.Radiobutton(
+                tool_frame,
+                text=f"{icon}  ",
                 variable=self.tool_var,
                 value=value,
-                command=self.change_tool
-            ).pack(anchor=tk.W, pady=2)
+                command=self.change_tool,
+                font=("Segoe UI", 14),  # Bigger font for icon
+                bg=default_bg,
+                activebackground=default_bg,
+                selectcolor=default_bg,
+                relief=tk.FLAT,
+                bd=0,
+                padx=0
+            )
+            rb.pack(side=tk.LEFT)
+            
+            # Small text label
+            tk.Label(
+                tool_frame,
+                text=label,
+                font=("Segoe UI", 8),
+                bg=default_bg,
+                fg="#555"
+            ).pack(side=tk.LEFT, padx=(0, 5))
         
         # Color selection section
         color_frame = ttk.LabelFrame(self.scrollable_control_frame, text="Shape Color", padding=10)
@@ -309,42 +397,9 @@ class LayoutHeatmapApp:
         )
         self.random_color_checkbox.pack(anchor=tk.W, pady=5)
         
-        # Action buttons
-        action_frame = ttk.LabelFrame(self.scrollable_control_frame, text="Actions", padding=10)
-        action_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        # First row - Undo and Delete
-        undo_frame = ttk.Frame(action_frame)
-        undo_frame.pack(fill=tk.X, pady=2)
 
-        ttk.Button(undo_frame, text="Undo (Ctrl+Z)", command=self.undo_action, width=12).pack(side=tk.LEFT, padx=(0, 2))
-        ttk.Button(undo_frame, text="Delete (Del)", command=self.delete_selected, width=12).pack(side=tk.LEFT, padx=2)
         
-        # Fill color button
-        ttk.Button(action_frame, text="Fill Selected Color", command=self.fill_selected_color, width=20).pack(pady=2)        # Second row - File operations
-        ttk.Button(action_frame, text="Clear All", command=self.clear_all, width=20).pack(pady=2)
-        ttk.Button(action_frame, text="Save Layout", command=self.save_layout, width=20).pack(pady=2)
-        ttk.Button(action_frame, text="Load Layout", command=self.load_layout, width=20).pack(pady=2)
-        ttk.Button(action_frame, text="Export Image", command=self.export_image, width=20).pack(pady=2)
-        
-        # Zoom controls
-        zoom_frame = ttk.LabelFrame(self.scrollable_control_frame, text="View Controls", padding=10)
-        zoom_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        # Zoom buttons
-        zoom_btn_frame = ttk.Frame(zoom_frame)
-        zoom_btn_frame.pack(fill=tk.X, pady=2)
-        
-        ttk.Button(zoom_btn_frame, text="Zoom In", command=self.zoom_in, width=9).pack(side=tk.LEFT, padx=(0, 2))
-        ttk.Button(zoom_btn_frame, text="Zoom Out", command=self.zoom_out, width=9).pack(side=tk.LEFT, padx=2)
-        
-        ttk.Button(zoom_frame, text="Fit to Window", command=self.fit_to_window, width=20).pack(pady=2)
-        ttk.Button(zoom_frame, text="Actual Size (100%)", command=self.actual_size, width=20).pack(pady=2)
-        
-        # Zoom level display
-        self.zoom_var = tk.StringVar()
-        self.zoom_var.set("Zoom: 100%")
-        ttk.Label(zoom_frame, textvariable=self.zoom_var).pack(pady=2)
+
         
         # Instructions
         instruction_frame = ttk.LabelFrame(self.scrollable_control_frame, text="Instructions", padding=10)
@@ -407,9 +462,6 @@ class LayoutHeatmapApp:
         
         # Bind escape key to cancel drawing (bind to canvas so it works in embedded mode)
         self.canvas.bind("<Escape>", self.cancel_drawing)
-        self.root.bind("<Control-z>", self.undo_action)
-        self.root.bind("<Delete>", self.delete_selected)
-        self.root.bind("<BackSpace>", self.delete_selected)
         self.canvas.focus_set()  # Allow canvas to receive key events
         
         # Instructions
@@ -444,8 +496,9 @@ class LayoutHeatmapApp:
             self.current_pdf_path = file_path
             filename = os.path.basename(file_path)
             self.file_info.set(f"Selected: {filename}")
-            self.process_btn.config(state="normal")
             self.status_var.set(f"PDF selected: {filename}")
+            # Automatically process the PDF
+            self.process_pdf()
     
     def process_pdf(self):
         """Process the selected PDF file using PyMuPDF"""
@@ -1159,6 +1212,49 @@ class LayoutHeatmapApp:
             self.status_var.set(f"Undone: {prev_state.get('action', 'Unknown action')}")
         else:
             self.status_var.set("Nothing to undo")
+    
+    def redo_action(self, event=None):
+        """Redo the last undone action"""
+        if self.history_index < len(self.history) - 1:
+            self.history_index += 1
+            
+            # Restore next state
+            next_state = self.history[self.history_index]
+            
+            # Clear current shapes from canvas
+            for shape in self.shapes:
+                if "canvas_id" in shape:
+                    try:
+                        self.canvas.delete(shape["canvas_id"])
+                    except:
+                        pass
+                if "selection_id" in shape:
+                    try:
+                        self.canvas.delete(shape["selection_id"])
+                    except:
+                        pass
+            
+            # Clear selection
+            self.clear_selection()
+            
+            # Restore shapes (make deep copies and remove old canvas_ids)
+            self.shapes = []
+            for shape in next_state["shapes"]:
+                new_shape = shape.copy()
+                # Remove old canvas_id and selection_id so redraw creates new ones
+                new_shape.pop("canvas_id", None)
+                new_shape.pop("selection_id", None)
+                self.shapes.append(new_shape)
+            
+            # Redraw all shapes
+            self.redraw_shapes()
+            
+            # Update shape list
+            self.update_shape_list()
+            
+            self.status_var.set(f"Redone: {next_state.get('action', 'Unknown action')}")
+        else:
+            self.status_var.set("Nothing to redo")
     
     def cancel_drawing(self, event=None):
         """Cancel current drawing operation"""
