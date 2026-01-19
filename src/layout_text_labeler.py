@@ -2041,6 +2041,9 @@ class LayoutTextLabeler:
         canvas_x = self.canvas.canvasx(event.x)
         canvas_y = self.canvas.canvasy(event.y)
         
+        # Convert canvas coordinates to image coordinates
+        img_x, img_y = self.canvas_to_image_coords(canvas_x, canvas_y)
+        
         # Find if clicking on any label
         clicked_items = self.canvas.find_overlapping(canvas_x-2, canvas_y-2, canvas_x+2, canvas_y+2)
         
@@ -2055,6 +2058,19 @@ class LayoutTextLabeler:
                     self.shape_listbox.selection_clear(0, tk.END)
                     self.shape_listbox.selection_set(shape_index)
                     self.shape_listbox.see(shape_index)
+                    
+                    # Trigger selection event
+                    self.on_shape_select(None)
+                    return
+        
+        # If not clicking on a label, check if clicking on a shape
+        if self.shapes:
+            for i, shape in enumerate(self.shapes):
+                if self.is_point_in_shape((img_x, img_y), shape):
+                    # Select this shape in listbox
+                    self.shape_listbox.selection_clear(0, tk.END)
+                    self.shape_listbox.selection_set(i)
+                    self.shape_listbox.see(i)
                     
                     # Trigger selection event
                     self.on_shape_select(None)

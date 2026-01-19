@@ -247,19 +247,6 @@ class LayoutHeatmapApp:
         # Delete button
         ttk.Button(shape_btn_frame, text="Delete", command=self.delete_selected, width=12).pack(side=tk.LEFT)
         
-        # Drawing mode toggle
-        mode_frame = ttk.LabelFrame(self.scrollable_control_frame, text="Mode", padding=10)
-        mode_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        self.drawing_mode = tk.BooleanVar(value=True)
-        self.mode_checkbox = ttk.Checkbutton(
-            mode_frame, 
-            text="Drawing Mode (uncheck for selection only)",
-            variable=self.drawing_mode,
-            command=self.toggle_drawing_mode
-        )
-        self.mode_checkbox.pack(anchor=tk.W)
-        
         # Drawing tools section
         tools_frame = ttk.LabelFrame(self.scrollable_control_frame, text="Drawing Tools", padding=10)
         tools_frame.pack(fill=tk.X, pady=(0, 10))
@@ -651,6 +638,29 @@ class LayoutHeatmapApp:
         canvas_x = self.canvas.canvasx(event.x)
         canvas_y = self.canvas.canvasy(event.y)
         
+        # Convert to image coordinates for shape detection
+        img_x, img_y = self.canvas_to_image_coords(canvas_x, canvas_y)
+        
+        # Check if clicking on a shape (regardless of current tool)
+        clicked_shape = None
+        for shape in reversed(self.shapes):  # Check from top to bottom
+            if self.is_point_in_shape((img_x, img_y), shape):
+                clicked_shape = shape
+                break
+        
+        # If clicked on a shape, select it in the listbox
+        if clicked_shape:
+            try:
+                shape_index = self.shapes.index(clicked_shape)
+                self.shape_listbox.selection_clear(0, tk.END)
+                self.shape_listbox.selection_set(shape_index)
+                self.shape_listbox.see(shape_index)
+                # Trigger the selection event to highlight the shape
+                self.on_shape_list_select(None)
+            except (ValueError, tk.TclError):
+                pass  # Shape not found or listbox error
+        
+        # Continue with normal tool behavior
         if self.current_tool == "select":
             # Selection mode
             self.handle_selection(canvas_x, canvas_y)
@@ -659,7 +669,8 @@ class LayoutHeatmapApp:
             self.start_polygon_point(canvas_x, canvas_y, event)
         else:
             # Regular drawing mode
-            self.clear_selection()
+            if not clicked_shape:  # Only clear selection if not clicking on a shape
+                self.clear_selection()
             self.start_drawing(event)
     
     def on_canvas_drag(self, event):
@@ -1206,13 +1217,6 @@ class LayoutHeatmapApp:
         self.update_color_display()
         self.color_var.set(self.selected_color)
     
-    def toggle_drawing_mode(self):
-        """Toggle between drawing and selection mode"""
-        if self.drawing_mode.get():
-            self.status_var.set("Drawing mode enabled - can create new shapes")
-        else:
-            self.status_var.set("Selection mode enabled - can select and move shapes")
-    
     def toggle_random_colors(self):
         """Toggle between random colors and manual color selection"""
         self.use_random_colors = self.random_color_var.get()
@@ -1379,6 +1383,48 @@ class LayoutHeatmapApp:
         canvas_x = img_x * self.zoom_factor + 10
         canvas_y = img_y * self.zoom_factor + 10
         return canvas_x, canvas_y
+    
+    def is_point_in_shape(self, point, shape):
+        """Check if a point is inside a shape"""
+        x, y = point
+        coords = shape["coordinates"]
+        shape_type = shape.get("type", "rectangle")
+        
+        if shape_type == "rectangle" or shape_type == "oval":
+            x1, y1, x2, y2 = coords
+            return min(x1, x2) <= x <= max(x1, x2) and min(y1, y2) <= y <= max(y1, y2)
+        elif shape_type == "polygon":
+            # Use ray casting algorithm for polygon
+            points = [(coords[i], coords[i+1]) for i in range(0, len(coords), 2)]
+            return self.point_in_polygon(point, points)
+        elif shape_type == "circle":
+            # Circle coordinates: [cx, cy, radius]
+            if len(coords) >= 3:
+                cx, cy, radius = coords[0], coords[1], coords[2]
+                distance = ((x - cx)**2 + (y - cy)**2)**0.5
+                return distance <= radius
+        
+        return False
+    
+    def point_in_polygon(self, point, polygon):
+        """Check if point is inside polygon using ray casting"""
+        x, y = point
+        n = len(polygon)
+        inside = False
+        
+        p1x, p1y = polygon[0]
+        for i in range(1, n + 1):
+            p2x, p2y = polygon[i % n]
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        
+        return inside
     
     def get_random_color(self):
         """Generate a random vibrant color for shapes"""
