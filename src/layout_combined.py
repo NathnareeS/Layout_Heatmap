@@ -61,7 +61,7 @@ class CombinedLayoutApp:
         # Initialize with project selection screen
         self.show_project_selection()
         
-        # Check for updates on startup (runs in background)
+        # Check for updates on startup (runs in background) 
         check_for_updates_on_startup(self.root)
     
     def center_window(self, width, height):

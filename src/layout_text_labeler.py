@@ -162,6 +162,10 @@ class LayoutTextLabeler:
         self.last_imported_df = None  # Store last imported Excel/CSV data
         self.current_mapping = {}  # Store current shape-to-row mapping {shape_idx: excel_row_idx}
         
+        # Undo functionality
+        self.undo_stack = []  # Stack to store previous states for undo
+        self.max_undo_steps = 20  # Maximum number of undo steps to keep
+        
         self.setup_ui()
     
     def setup_ui(self):
@@ -401,11 +405,24 @@ class LayoutTextLabeler:
         editor_frame = ttk.LabelFrame(left_panel, text="Text Editor", padding=10)
         editor_frame.pack(fill=tk.X, pady=(0, 10), padx=5)
         
-        # Scrollable text entries container with height limit
-        scroll_frame = ttk.Frame(editor_frame)
-        scroll_frame.pack(fill=tk.BOTH, expand=True)
+        # Container for both placeholder and scroll frame (only one visible at a time)
+        editor_content_frame = ttk.Frame(editor_frame)
+        editor_content_frame.pack(fill=tk.BOTH, expand=True)
         
-        scroll_canvas = tk.Canvas(scroll_frame, height=300)  # Set max height - increased to accommodate more text lines
+        # Placeholder label for when no shape is selected
+        self.editor_placeholder = ttk.Label(
+            editor_content_frame,
+            text="Select a shape to edit its label",
+            font=("Arial", 10, "italic"),
+            foreground="gray"
+        )
+        self.editor_placeholder.pack(pady=20)
+        
+        # Scrollable text entries container with height limit
+        scroll_frame = ttk.Frame(editor_content_frame)
+        # Don't pack it yet - will be shown when shape is selected
+        
+        scroll_canvas = tk.Canvas(scroll_frame, height=300, highlightthickness=0)  # Set max height
         text_scrollbar = ttk.Scrollbar(scroll_frame, orient="vertical", command=scroll_canvas.yview)
         self.text_entries_container = ttk.Frame(scroll_canvas)
         
@@ -415,13 +432,25 @@ class LayoutTextLabeler:
         scroll_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         text_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
+        # Store reference to scroll frame and canvas
+        self.editor_scroll_frame = scroll_frame
+        self.editor_scroll_canvas = scroll_canvas
+        
         # Update scroll region when container changes
-        self.text_entries_container.bind("<Configure>", 
-                                        lambda e: scroll_canvas.configure(scrollregion=scroll_canvas.bbox("all")))
+        def update_scroll_region(event=None):
+            # Update the scroll region to match content
+            scroll_canvas.configure(scrollregion=scroll_canvas.bbox("all"))
+            # Reset scroll position to top to prevent phantom scrolling
+            scroll_canvas.yview_moveto(0)
+        
+        self.text_entries_container.bind("<Configure>", update_scroll_region)
         
         # Add mousewheel scrolling for text editor
         def on_text_editor_mousewheel(event):
-            scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            # Only scroll if content exceeds visible area
+            bbox = scroll_canvas.bbox("all")
+            if bbox and bbox[3] > scroll_canvas.winfo_height():
+                scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
         # Bind mousewheel to scroll canvas and text entries container
         scroll_canvas.bind("<MouseWheel>", on_text_editor_mousewheel)
@@ -437,6 +466,10 @@ class LayoutTextLabeler:
         
         # Delete button
         ttk.Button(button_frame, text="Delete Label", command=self.delete_label, width=12).pack(side=tk.LEFT, padx=2)
+        
+        # Undo button
+        self.undo_button = ttk.Button(button_frame, text="↶ Undo", command=self.undo_last_change, width=12, state='disabled')
+        self.undo_button.pack(side=tk.LEFT, padx=2)
         
         # Track if changes are pending
         self.changes_pending = False
@@ -752,23 +785,17 @@ class LayoutTextLabeler:
                 center = self.get_shape_center(shape)
                 
                 label = TextLabel(self.selected_shape_index, center)
-                # Auto-populate with shape name
-                shape_name = shape.get("name", f"Shape {self.selected_shape_index + 1}")
-                label.text_lines = [shape_name]
-                label.use_custom_text = False  # Default to using shape name
+                # Start with empty text - user will add their own
+                label.text_lines = []
+                label.use_custom_text = True  # User will provide custom text
                 # Set default leader line width
                 if hasattr(self, 'default_leader_width'):
                     label.leader_width = self.default_leader_width.get()
                 self.labels.append(label)
                 self.selected_label = label
                 
-                # Clear editor and add first line with shape name
+                # Clear editor - no text lines added yet
                 self.clear_text_editor()
-                self.add_text_line()
-                # Set the first text entry to shape name
-                if self.text_entry_widgets:
-                    self.text_entry_widgets[0].entry.delete(0, tk.END)
-                    self.text_entry_widgets[0].entry.insert(0, shape_name)
             
             # Highlight shape on canvas
             self.highlight_selected_shape()
@@ -832,9 +859,22 @@ class LayoutTextLabeler:
         for widget in self.text_entry_widgets:
             widget.destroy()
         self.text_entry_widgets.clear()
+        
+        # Show placeholder and hide scroll frame
+        if hasattr(self, 'editor_placeholder'):
+            self.editor_placeholder.pack(pady=20)
+        if hasattr(self, 'editor_scroll_frame'):
+            self.editor_scroll_frame.pack_forget()
     
     def add_text_line(self):
         """Add a new text line entry with per-line formatting controls"""
+        # Hide placeholder and show scroll frame on first text line
+        if not self.text_entry_widgets:
+            if hasattr(self, 'editor_placeholder'):
+                self.editor_placeholder.pack_forget()
+            if hasattr(self, 'editor_scroll_frame'):
+                self.editor_scroll_frame.pack(fill=tk.BOTH, expand=True)
+        
         line_frame = ttk.Frame(self.text_entries_container, relief=tk.GROOVE, borderwidth=1)
         line_frame.pack(fill=tk.X, pady=3, padx=2)
         
@@ -1161,6 +1201,9 @@ class LayoutTextLabeler:
     
     def apply_all_changes(self):
         """Apply all changes: text, formatting, and conditional colors to ALL labels"""
+        # Save state before applying changes
+        self.save_state_for_undo()
+        
         # First apply text changes to selected label if any
         if self.selected_label:
             self.apply_text()
@@ -1212,18 +1255,110 @@ class LayoutTextLabeler:
         self.display_canvas()
         
         self.status_var.set("All changes applied successfully to all labels")
+        
+        # Update undo button state
+        self.update_undo_button_state()
     
     def delete_label(self):
         """Delete the selected label"""
         if self.selected_label:
+            # Save state before deleting
+            self.save_state_for_undo()
+            
             self.labels.remove(self.selected_label)
             self.selected_label = None
             self.clear_text_editor()
             self.display_canvas()
             self.update_shape_list()
             self.status_var.set("Label deleted")
+            
+            # Update undo button state
+            self.update_undo_button_state()
         else:
             messagebox.showinfo("Info", "No label selected to delete")
+    
+    def save_state_for_undo(self):
+        """Save current state to undo stack before making changes"""
+        import copy
+        
+        # Create deep copy of labels
+        labels_copy = []
+        for label in self.labels:
+            label_copy = TextLabel(label.shape_index, label.position)
+            label_copy.text_lines = label.text_lines.copy()
+            label_copy.line_font_sizes = label.line_font_sizes.copy()
+            label_copy.line_font_colors = label.line_font_colors.copy()
+            label_copy.line_bg_colors = label.line_bg_colors.copy()
+            label_copy.line_variables = label.line_variables.copy()
+            label_copy.line_is_sales = label.line_is_sales.copy()
+            label_copy.line_unit_metric = label.line_unit_metric.copy()
+            label_copy.has_leader = label.has_leader
+            label_copy.leader_points = copy.deepcopy(label.leader_points)
+            label_copy.leader_style = label.leader_style
+            label_copy.leader_width = label.leader_width
+            label_copy.leader_color = label.leader_color
+            label_copy.use_custom_text = label.use_custom_text
+            labels_copy.append(label_copy)
+        
+        # Create deep copy of shapes (for conditional coloring)
+        shapes_copy = copy.deepcopy(self.shapes)
+        
+        # Save state
+        state = {
+            'labels': labels_copy,
+            'shapes': shapes_copy,
+            'selected_shape_index': self.selected_shape_index
+        }
+        
+        self.undo_stack.append(state)
+        
+        # Limit stack size
+        if len(self.undo_stack) > self.max_undo_steps:
+            self.undo_stack.pop(0)
+        
+        # Update undo button state
+        self.update_undo_button_state()
+    
+    def undo_last_change(self):
+        """Undo the last change by restoring previous state"""
+        if not self.undo_stack:
+            messagebox.showinfo("Info", "Nothing to undo")
+            return
+        
+        # Pop last state from stack
+        state = self.undo_stack.pop()
+        
+        # Restore labels
+        self.labels = state['labels']
+        
+        # Restore shapes
+        self.shapes = state['shapes']
+        
+        # Restore selected shape index
+        self.selected_shape_index = state['selected_shape_index']
+        
+        # Clear selected label
+        self.selected_label = None
+        
+        # Update UI
+        self.clear_text_editor()
+        self.update_shape_list()
+        self.display_canvas()
+        
+        # Update status
+        self.status_var.set("Undo successful")
+        
+        # Update undo button state
+        self.update_undo_button_state()
+    
+    def update_undo_button_state(self):
+        """Enable or disable undo button based on undo stack state"""
+        if hasattr(self, 'undo_button'):
+            if self.undo_stack:
+                self.undo_button.config(state='normal')
+            else:
+                self.undo_button.config(state='disabled')
+
     
     def pick_default_text_color(self):
         """Pick default text color"""
@@ -1258,10 +1393,13 @@ class LayoutTextLabeler:
         response = messagebox.askyesno(
             "Confirm Clear",
             "Are you sure you want to clear all labels?\n\n"
-            "This action cannot be undone!"
+            "You can use Undo to restore them."
         )
         
         if response:
+            # Save state before clearing
+            self.save_state_for_undo()
+            
             self.labels.clear()
             self.selected_label = None
             self.clear_text_editor()
@@ -1269,6 +1407,9 @@ class LayoutTextLabeler:
             self.update_shape_list()
             self.status_var.set("All labels cleared")
             messagebox.showinfo("Success", "All labels cleared")
+            
+            # Update undo button state
+            self.update_undo_button_state()
     
     def new_file(self):
         """Clear everything and start fresh with a new file"""
