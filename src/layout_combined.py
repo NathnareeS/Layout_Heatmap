@@ -936,7 +936,7 @@ class CombinedLayoutApp:
                 # Load into Heatmap Generator (process_pdf will call display_pdf_image which calls redraw_shapes)
                 self.heatmap_app.current_pdf_path = pdf_path
                 self.heatmap_app.file_info.set(f"Selected: {filename}")
-                self.heatmap_app.process_btn.config(state="normal")
+                # Process PDF automatically (no need to enable button since it auto-processes)
                 self.heatmap_app.process_pdf()
             
             # Update UI elements after everything is loaded

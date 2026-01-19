@@ -121,6 +121,7 @@ class TextLabel:
         self.drag_offset = (0, 0)
         # Custom text feature
         self.use_custom_text = False  # If False, use shape name; if True, use custom text
+        self.text_visible = True  # Toggle to hide/show text
 
 
 class LayoutTextLabeler:
@@ -444,6 +445,10 @@ class LayoutTextLabeler:
         # Action buttons - BELOW everything else
         button_frame = ttk.Frame(editor_frame)
         button_frame.pack(fill=tk.X, pady=5)
+        
+        # Hide/Show Text button
+        self.hide_text_btn = ttk.Button(button_frame, text="Hide Text", command=self.toggle_text_visibility, width=12)
+        self.hide_text_btn.pack(side=tk.LEFT, padx=2)
         
         # Delete button
         ttk.Button(button_frame, text="Delete Label", command=self.delete_label, width=12).pack(side=tk.LEFT, padx=2)
@@ -1038,7 +1043,12 @@ class LayoutTextLabeler:
             # Update dropdown values in case new variables were added
             variable_names = ["None"] + [v.name for v in self.variables]
             line_frame.variable_combo.config(values=variable_names)
-
+        
+        # Update Hide/Show Text button state
+        if label.text_visible:
+            self.hide_text_btn.config(text="Hide Text")
+        else:
+            self.hide_text_btn.config(text="Show Text")
 
     
     
@@ -1283,6 +1293,7 @@ class LayoutTextLabeler:
             label_copy.leader_width = label.leader_width
             label_copy.leader_color = label.leader_color
             label_copy.use_custom_text = label.use_custom_text
+            label_copy.text_visible = label.text_visible
             labels_copy.append(label_copy)
         
         # Create deep copy of shapes (for conditional coloring)
@@ -1303,6 +1314,23 @@ class LayoutTextLabeler:
         
         # Update undo button state
         self.update_undo_button_state()
+    
+    def toggle_text_visibility(self):
+        """Toggle visibility of text for the selected label"""
+        if self.selected_label:
+            # Toggle the visibility flag
+            self.selected_label.text_visible = not self.selected_label.text_visible
+            
+            # Update button text
+            if self.selected_label.text_visible:
+                self.hide_text_btn.config(text="Hide Text")
+            else:
+                self.hide_text_btn.config(text="Show Text")
+            
+            # Redraw canvas to show/hide text
+            self.display_canvas()
+        else:
+            messagebox.showinfo("Info", "Please select a label first")
     
     def undo_last_change(self):
         """Undo the last change by restoring previous state"""
@@ -1611,6 +1639,10 @@ class LayoutTextLabeler:
     def draw_labels(self):
         """Draw text labels and leader lines on canvas"""
         for label in self.labels:
+            # Skip drawing if text is hidden
+            if not label.text_visible:
+                continue
+            
             # Validate shape index before accessing
             if label.shape_index < 0 or label.shape_index >= len(self.shapes):
                 # Skip labels that reference non-existent shapes

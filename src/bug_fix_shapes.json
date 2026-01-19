@@ -35,9 +35,9 @@
         337.2078885607755,
         149.19629601789708
       ],
-      "color": "#FF6B6B",
+      "color": "#00ffff",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 1"
     },
     {
       "type": "polygon",
@@ -49,9 +49,9 @@
         607.7019862192393,
         371.17127302013415
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 2"
     },
     {
       "type": "polygon",
@@ -65,9 +65,9 @@
         605.276030186428,
         604.0630521700223
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 3"
     },
     {
       "type": "rectangle",
@@ -77,9 +77,9 @@
         1358.5353783743474,
         814.2114935123042
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Rectangle 4"
     },
     {
       "type": "rectangle",
@@ -89,9 +89,9 @@
         550.3887749440715,
         410.8963030574198
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Rectangle 5"
     },
     {
       "type": "rectangle",
@@ -103,7 +103,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Rectangle 6"
     },
     {
       "type": "rectangle",
@@ -113,9 +113,9 @@
         547.3563299030574,
         1015.8690887397463
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Rectangle 7"
     },
     {
       "type": "polygon",
@@ -133,9 +133,9 @@
         310.8256167039522,
         1047.709761670395
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 8"
     },
     {
       "type": "polygon",
@@ -159,9 +159,9 @@
         606.4890082028336,
         1138.68311290082
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 9"
     },
     {
       "type": "polygon",
@@ -189,7 +189,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 10"
     },
     {
       "type": "rectangle",
@@ -199,9 +199,9 @@
         1352.470488292319,
         1048.0130061744965
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Rectangle 11"
     },
     {
       "type": "polygon",
@@ -271,9 +271,9 @@
         896.6333497270693,
         1561.9275321652497
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 12"
     },
     {
       "type": "polygon",
@@ -287,9 +287,9 @@
         1460.2314552697985,
         962.6193538195377
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 13"
     },
     {
       "type": "polygon",
@@ -347,9 +347,9 @@
         896.6333497270693,
         1080.617855255481
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 14"
     },
     {
       "type": "polygon",
@@ -415,9 +415,9 @@
         1153.590612722446,
         1450.9157841038032
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 15"
     },
     {
       "type": "oval",
@@ -427,9 +427,9 @@
         1207.9320278574198,
         1690.794316628188
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Oval 16"
     },
     {
       "type": "polygon",
@@ -489,9 +489,9 @@
         896.6333497270693,
         1915.1467305425801
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 17"
     },
     {
       "type": "polygon",
@@ -539,9 +539,9 @@
         1152.8143067919464,
         2029.2637023260254
       ],
-      "color": "#FF6B6B",
+      "color": "#00ffff",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 18"
     },
     {
       "type": "rectangle",
@@ -551,9 +551,9 @@
         1075.9600196724832,
         2276.9052941554064
       ],
-      "color": "#FF6B6B",
+      "color": "#00ffff",
       "stipple": "",
-      "name": ""
+      "name": "Rectangle 19"
     },
     {
       "type": "polygon",
@@ -581,9 +581,9 @@
         1424.5213824668156,
         2062.0626278896343
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 20"
     },
     {
       "type": "polygon",
@@ -607,7 +607,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 21"
     },
     {
       "type": "polygon",
@@ -623,7 +623,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 22"
     },
     {
       "type": "polygon",
@@ -639,7 +639,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 23"
     },
     {
       "type": "polygon",
@@ -653,9 +653,9 @@
         1456.5535625177884,
         1331.9096146250681
       ],
-      "color": "#FF6B6B",
+      "color": "#FF0000",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 24"
     },
     {
       "type": "polygon",
@@ -671,7 +671,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 25"
     },
     {
       "type": "polygon",
@@ -687,7 +687,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 26"
     },
     {
       "type": "rectangle",
@@ -699,7 +699,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Rectangle 27"
     },
     {
       "type": "rectangle",
@@ -711,7 +711,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Rectangle 28"
     },
     {
       "type": "rectangle",
@@ -723,7 +723,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Rectangle 29"
     },
     {
       "type": "polygon",
@@ -785,7 +785,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 30"
     },
     {
       "type": "polygon",
@@ -809,7 +809,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 31"
     },
     {
       "type": "polygon",
@@ -849,7 +849,7 @@
       ],
       "color": "#FF6B6B",
       "stipple": "",
-      "name": ""
+      "name": "Polygon 32"
     }
   ]
 }
