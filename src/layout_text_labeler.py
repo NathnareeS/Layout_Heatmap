@@ -54,6 +54,9 @@ class Variable:
         self.text_color: Optional[str] = None
         self.bg_color: Optional[str] = None
         self.text_size: Optional[int] = None
+        self.text_bold: bool = False  # Bold text style
+        self.text_italic: bool = False  # Italic text style
+        self.text_underline: bool = False  # Underline text style
         # Auto Sales/Area settings
         self.auto_enable_sales: bool = False  # Auto-check Sales/Area when this variable is selected
         self.default_unit: str = "None"  # Default unit metric to use
@@ -122,6 +125,7 @@ class TextLabel:
         # Custom text feature
         self.use_custom_text = False  # If False, use shape name; if True, use custom text
         self.text_visible = True  # Toggle to hide/show text
+        self.leader_visible = True  # Toggle to hide/show leader line
 
 
 class LayoutTextLabeler:
@@ -449,6 +453,10 @@ class LayoutTextLabeler:
         # Hide/Show Text button
         self.hide_text_btn = ttk.Button(button_frame, text="Hide Text", command=self.toggle_text_visibility, width=12)
         self.hide_text_btn.pack(side=tk.LEFT, padx=2)
+        
+        # Hide/Show Leader Line button
+        self.hide_leader_btn = ttk.Button(button_frame, text="Hide Line", command=self.toggle_leader_visibility, width=12)
+        self.hide_leader_btn.pack(side=tk.LEFT, padx=2)
         
         # Delete button
         ttk.Button(button_frame, text="Delete Label", command=self.delete_label, width=12).pack(side=tk.LEFT, padx=2)
@@ -1049,6 +1057,12 @@ class LayoutTextLabeler:
             self.hide_text_btn.config(text="Hide Text")
         else:
             self.hide_text_btn.config(text="Show Text")
+        
+        # Update Hide/Show Leader Line button state
+        if label.leader_visible:
+            self.hide_leader_btn.config(text="Hide Line")
+        else:
+            self.hide_leader_btn.config(text="Show Line")
 
     
     
@@ -1328,6 +1342,23 @@ class LayoutTextLabeler:
                 self.hide_text_btn.config(text="Show Text")
             
             # Redraw canvas to show/hide text
+            self.display_canvas()
+        else:
+            messagebox.showinfo("Info", "Please select a label first")
+    
+    def toggle_leader_visibility(self):
+        """Toggle visibility of leader line for the selected label"""
+        if self.selected_label:
+            # Toggle the leader visibility flag
+            self.selected_label.leader_visible = not self.selected_label.leader_visible
+            
+            # Update button text
+            if self.selected_label.leader_visible:
+                self.hide_leader_btn.config(text="Hide Line")
+            else:
+                self.hide_leader_btn.config(text="Show Line")
+            
+            # Redraw canvas to show/hide leader line
             self.display_canvas()
         else:
             messagebox.showinfo("Info", "Please select a label first")
@@ -1674,7 +1705,29 @@ class LayoutTextLabeler:
                     
                     # Scale font size with zoom
                     display_font_size = max(1, int(base_font_size * self.zoom_factor))
-                    temp_font = tkfont.Font(family="Arial", size=display_font_size)
+                    
+                    # Check if this line has a variable with text style properties
+                    font_weight = "normal"
+                    font_slant = "roman"
+                    font_underline = False
+                    
+                    if i < len(label.line_variables):
+                        var_name = label.line_variables[i]
+                        if var_name and var_name != "None":
+                            # Find the variable
+                            for v in self.variables:
+                                if v.name == var_name:
+                                    if getattr(v, 'text_bold', False):
+                                        font_weight = "bold"
+                                    if getattr(v, 'text_italic', False):
+                                        font_slant = "italic"
+                                    if getattr(v, 'text_underline', False):
+                                        font_underline = True
+                                    break
+                    
+                    temp_font = tkfont.Font(family="Arial", size=display_font_size, 
+                                           weight=font_weight, slant=font_slant, 
+                                           underline=font_underline)
                     
                     # Use text as-is (unit is already in the text if applicable)
                     display_text = text
@@ -1714,6 +1767,25 @@ class LayoutTextLabeler:
                     # Scale font size with zoom
                     display_font_size = max(1, int(base_font_size * self.zoom_factor))
                     
+                    # Check if this line has a variable with text style properties
+                    font_weight = "normal"
+                    font_slant = "roman"
+                    font_underline = False
+                    
+                    if i < len(label.line_variables):
+                        var_name = label.line_variables[i]
+                        if var_name and var_name != "None":
+                            # Find the variable
+                            for v in self.variables:
+                                if v.name == var_name:
+                                    if getattr(v, 'text_bold', False):
+                                        font_weight = "bold"
+                                    if getattr(v, 'text_italic', False):
+                                        font_slant = "italic"
+                                    if getattr(v, 'text_underline', False):
+                                        font_underline = True
+                                    break
+                    
                     # Calculate box dimensions for this line
                     line_box_height = line_heights[i] + (padding_y * 2)
                     line_box_width = max_width + (padding_x * 2)
@@ -1730,12 +1802,17 @@ class LayoutTextLabeler:
                     # Use text as-is (unit is already in the text if applicable)
                     display_text = text
                     
+                    # Create font with styles
+                    text_font = tkfont.Font(family="Arial", size=display_font_size,
+                                           weight=font_weight, slant=font_slant,
+                                           underline=font_underline)
+                    
                     # Draw text centered on top of background
                     text_id = self.canvas.create_text(
                         canvas_x + line_box_width / 2, current_y + padding_y,
                         text=display_text,
                         anchor=tk.N,
-                        font=("Arial", display_font_size),
+                        font=text_font,
                         fill=text_color,
                         tags=f"label_text_{label.shape_index}"
                     )
@@ -1750,7 +1827,8 @@ class LayoutTextLabeler:
                                     lambda e, lbl=label: self.start_drag_label(e, lbl))
                 
                 # Now draw the leader line connecting to the middle of the label box
-                if label.has_leader:
+                # Only draw if leader_visible is True
+                if label.has_leader and label.leader_visible:
                     # Calculate leader line to shape
                     label.leader_points = self.calculate_leader_line(label.position, shape)
                     
@@ -2247,7 +2325,12 @@ class LayoutTextLabeler:
                             "line_bg_colors": label.line_bg_colors,
                             "line_variables": label.line_variables,
                             "has_leader": label.has_leader,
-                            "leader_points": label.leader_points
+                            "leader_points": label.leader_points,
+                            "leader_style": label.leader_style,
+                            "leader_width": label.leader_width,
+                            "leader_color": label.leader_color,
+                            "text_visible": label.text_visible,
+                            "leader_visible": label.leader_visible
                         }
                         for label in self.labels
                     ]
@@ -2367,6 +2450,15 @@ class LayoutTextLabeler:
                         
                         label.has_leader = label_data.get("has_leader", False)
                         label.leader_points = label_data.get("leader_points", [])
+                        
+                        # Load leader line styling properties (with defaults for backward compatibility)
+                        label.leader_style = label_data.get("leader_style", "solid")
+                        label.leader_width = label_data.get("leader_width", 2)
+                        label.leader_color = label_data.get("leader_color", "#666666")
+                        
+                        # Load visibility properties (with defaults for backward compatibility)
+                        label.text_visible = label_data.get("text_visible", True)
+                        label.leader_visible = label_data.get("leader_visible", True)
                         
                         self.labels.append(label)
                         loaded_count += 1
@@ -2627,14 +2719,44 @@ class LayoutTextLabeler:
                     else:
                         font_size = 12
                     
+                    # Check if this line has a variable with text style properties
+                    is_bold = False
+                    is_italic = False
+                    
+                    if i < len(label.line_variables):
+                        var_name = label.line_variables[i]
+                        if var_name and var_name != "None":
+                            # Find the variable
+                            for v in self.variables:
+                                if v.name == var_name:
+                                    is_bold = getattr(v, 'text_bold', False)
+                                    is_italic = getattr(v, 'text_italic', False)
+                                    break
+                    
+                    # Load appropriate font based on style
+                    font_name = "arial.ttf"
+                    if is_bold and is_italic:
+                        font_name = "arialbi.ttf"  # Bold + Italic
+                    elif is_bold:
+                        font_name = "arialbd.ttf"  # Bold
+                    elif is_italic:
+                        font_name = "ariali.ttf"   # Italic
+                    
                     # Load font
                     try:
-                        custom_font = ImageFont.truetype("arial.ttf", font_size)
+                        custom_font = ImageFont.truetype(font_name, font_size)
                     except:
                         try:
-                            custom_font = ImageFont.truetype("C:/Windows/Fonts/arial.ttf", font_size)
+                            custom_font = ImageFont.truetype(f"C:/Windows/Fonts/{font_name}", font_size)
                         except:
-                            custom_font = ImageFont.load_default()
+                            # Fallback to regular arial if styled font not found
+                            try:
+                                custom_font = ImageFont.truetype("arial.ttf", font_size)
+                            except:
+                                try:
+                                    custom_font = ImageFont.truetype("C:/Windows/Fonts/arial.ttf", font_size)
+                                except:
+                                    custom_font = ImageFont.load_default()
                     
                     fonts.append(custom_font)
                     
@@ -2713,6 +2835,22 @@ class LayoutTextLabeler:
                     text_x = x + (line_box_width - line_widths[i]) / 2
                     text_y = current_y + padding_y
                     draw.text((text_x, text_y), display_text, fill=text_color, font=fonts[i])
+                    
+                    # Check if underline is needed
+                    if i < len(label.line_variables):
+                        var_name = label.line_variables[i]
+                        if var_name and var_name != "None":
+                            for v in self.variables:
+                                if v.name == var_name:
+                                    if getattr(v, 'text_underline', False):
+                                        # Draw underline
+                                        underline_y = text_y + line_heights[i] + 2
+                                        draw.line(
+                                            [(text_x, underline_y), (text_x + line_widths[i], underline_y)],
+                                            fill=text_color,
+                                            width=max(1, int(label.line_font_sizes[i] / 12))
+                                        )
+                                    break
                     
                     # Move to next line (boxes touch each other - matching preview)
                     current_y += line_box_height
@@ -3035,6 +3173,20 @@ class LayoutTextLabeler:
         ttk.Spinbox(size_frame, from_=0, to=72, textvariable=text_size_var, width=8).pack(side=tk.LEFT, padx=5)
         ttk.Label(size_frame, text="(0 = no change)", font=("Arial", 8), foreground="gray").pack(side=tk.LEFT)
         
+        # Text Style (Bold, Italic, Underline)
+        style_frame = ttk.Frame(format_frame)
+        style_frame.pack(fill=tk.X, pady=2)
+        ttk.Label(style_frame, text="Text Style:", width=12).pack(side=tk.LEFT)
+        
+        text_bold_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(style_frame, text="Bold", variable=text_bold_var).pack(side=tk.LEFT, padx=5)
+        
+        text_italic_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(style_frame, text="Italic", variable=text_italic_var).pack(side=tk.LEFT, padx=5)
+        
+        text_underline_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(style_frame, text="Underline", variable=text_underline_var).pack(side=tk.LEFT, padx=5)
+        
         # Auto Unit Settings Section
         auto_sales_frame = ttk.LabelFrame(dialog, text="Auto Unit Settings", padding=10)
         auto_sales_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
@@ -3113,6 +3265,9 @@ class LayoutTextLabeler:
             var.text_color = text_color_var.get() if text_color_var.get() else None
             var.bg_color = bg_color_var.get() if bg_color_var.get() else None
             var.text_size = text_size_var.get() if text_size_var.get() > 0 else None
+            var.text_bold = text_bold_var.get()
+            var.text_italic = text_italic_var.get()
+            var.text_underline = text_underline_var.get()
             
             # Save auto Unit settings
             var.auto_enable_sales = auto_enable_var.get()
@@ -3183,6 +3338,20 @@ class LayoutTextLabeler:
         text_size_var = tk.IntVar(value=variable.text_size if variable.text_size else 0)
         ttk.Spinbox(size_frame, from_=0, to=72, textvariable=text_size_var, width=8).pack(side=tk.LEFT, padx=5)
         ttk.Label(size_frame, text="(0 = no change)", font=("Arial", 8), foreground="gray").pack(side=tk.LEFT)
+        
+        # Text Style (Bold, Italic, Underline)
+        style_frame = ttk.Frame(format_frame)
+        style_frame.pack(fill=tk.X, pady=2)
+        ttk.Label(style_frame, text="Text Style:", width=12).pack(side=tk.LEFT)
+        
+        text_bold_var = tk.BooleanVar(value=variable.text_bold if hasattr(variable, 'text_bold') else False)
+        ttk.Checkbutton(style_frame, text="Bold", variable=text_bold_var).pack(side=tk.LEFT, padx=5)
+        
+        text_italic_var = tk.BooleanVar(value=variable.text_italic if hasattr(variable, 'text_italic') else False)
+        ttk.Checkbutton(style_frame, text="Italic", variable=text_italic_var).pack(side=tk.LEFT, padx=5)
+        
+        text_underline_var = tk.BooleanVar(value=variable.text_underline if hasattr(variable, 'text_underline') else False)
+        ttk.Checkbutton(style_frame, text="Underline", variable=text_underline_var).pack(side=tk.LEFT, padx=5)
         
         # Auto Unit Settings Section (NEW)
         auto_sales_frame = ttk.LabelFrame(dialog, text="Auto Unit Settings", padding=10)
@@ -3301,6 +3470,9 @@ class LayoutTextLabeler:
             variable.text_color = text_color_var.get() if text_color_var.get() else None
             variable.bg_color = bg_color_var.get() if bg_color_var.get() else None
             variable.text_size = text_size_var.get() if text_size_var.get() > 0 else None
+            variable.text_bold = text_bold_var.get()
+            variable.text_italic = text_italic_var.get()
+            variable.text_underline = text_underline_var.get()
             
             # Save auto Sales/Area settings
             variable.auto_enable_sales = auto_enable_var.get()
@@ -3363,6 +3535,9 @@ class LayoutTextLabeler:
                     "text_color": var.text_color,
                     "bg_color": var.bg_color,
                     "text_size": var.text_size,
+                    "text_bold": getattr(var, 'text_bold', False),
+                    "text_italic": getattr(var, 'text_italic', False),
+                    "text_underline": getattr(var, 'text_underline', False),
                     "auto_enable_sales": var.auto_enable_sales,
                     "default_unit": var.default_unit,
                     "rules": []
@@ -3439,6 +3614,9 @@ class LayoutTextLabeler:
                     existing_var.text_color = var_dict.get("text_color")
                     existing_var.bg_color = var_dict.get("bg_color")
                     existing_var.text_size = var_dict.get("text_size")
+                    existing_var.text_bold = var_dict.get("text_bold", False)
+                    existing_var.text_italic = var_dict.get("text_italic", False)
+                    existing_var.text_underline = var_dict.get("text_underline", False)
                     existing_var.auto_enable_sales = var_dict.get("auto_enable_sales", False)
                     existing_var.default_unit = var_dict.get("default_unit", "None")
                     existing_var.rules.clear()
@@ -3449,6 +3627,9 @@ class LayoutTextLabeler:
                     var.text_color = var_dict.get("text_color")
                     var.bg_color = var_dict.get("bg_color")
                     var.text_size = var_dict.get("text_size")
+                    var.text_bold = var_dict.get("text_bold", False)
+                    var.text_italic = var_dict.get("text_italic", False)
+                    var.text_underline = var_dict.get("text_underline", False)
                     var.auto_enable_sales = var_dict.get("auto_enable_sales", False)
                     var.default_unit = var_dict.get("default_unit", "None")
                     self.variables.append(var)
