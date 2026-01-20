@@ -4027,17 +4027,17 @@ class LayoutTextLabeler:
                         *scaled_coords,
                         outline="#00bfff",
                         fill="#00ffff",
-                        stipple="gray25",
+                        stipple="gray12",  # Lighter stipple for better transparency
                         width=3,
                         tags="highlight"
                     )
                 else:
-                    # Draw normal shape
+                    # Draw normal shape (no fill)
                     preview_canvas.create_rectangle(
                         *scaled_coords,
                         outline=shape.get("color", "#0000FF"),
+                        fill="",  # Explicitly no fill
                         width=2,
-                        fill="",
                         tags=f"shape_{shape_idx}"
                     )
                     
@@ -4053,7 +4053,7 @@ class LayoutTextLabeler:
                         *scaled_coords,
                         outline="#00bfff",
                         fill="#00ffff",
-                        stipple="gray25",
+                        stipple="gray12",  # Lighter stipple for better transparency
                         width=3,
                         tags="highlight"
                     )
@@ -4068,8 +4068,8 @@ class LayoutTextLabeler:
                     preview_canvas.create_polygon(
                         *scaled_coords,
                         outline=shape.get("color", "#0000FF"),
+                        fill="",  # Explicitly no fill
                         width=2,
-                        fill="",
                         tags=f"shape_{shape_idx}"
                     )
                     
@@ -4094,7 +4094,7 @@ class LayoutTextLabeler:
                         x1, y1, x2, y2,
                         outline="#00bfff",
                         fill="#00ffff",
-                        stipple="gray25",
+                        stipple="gray12",  # Lighter stipple for better transparency
                         width=3,
                         tags="highlight"
                     )
@@ -4102,8 +4102,43 @@ class LayoutTextLabeler:
                     preview_canvas.create_oval(
                         x1, y1, x2, y2,
                         outline=shape.get("color", "#0000FF"),
+                        fill="",  # Explicitly no fill
                         width=2,
-                        fill="",
+                        tags=f"shape_{shape_idx}"
+                    )
+            
+            elif shape_type == "oval":
+                # Oval coordinates: [x1, y1, x2, y2] (bounding box)
+                x1, y1, x2, y2 = coords
+                scaled_x1 = x1 * scale + x_offset
+                scaled_y1 = y1 * scale + y_offset
+                scaled_x2 = x2 * scale + x_offset
+                scaled_y2 = y2 * scale + y_offset
+                
+                if highlighted:
+                    # Draw beautiful cyan highlight for oval
+                    # Outer glow
+                    preview_canvas.create_oval(
+                        scaled_x1-3, scaled_y1-3, scaled_x2+3, scaled_y2+3,
+                        outline="#00d4ff",
+                        width=6,
+                        tags="highlight"
+                    )
+                    # Main highlight
+                    preview_canvas.create_oval(
+                        scaled_x1, scaled_y1, scaled_x2, scaled_y2,
+                        outline="#00bfff",
+                        fill="#00ffff",
+                        stipple="gray12",  # Lighter stipple for better transparency
+                        width=3,
+                        tags="highlight"
+                    )
+                else:
+                    preview_canvas.create_oval(
+                        scaled_x1, scaled_y1, scaled_x2, scaled_y2,
+                        outline=shape.get("color", "#0000FF"),
+                        fill="",  # Explicitly no fill
+                        width=2,
                         tags=f"shape_{shape_idx}"
                     )
         
@@ -4116,6 +4151,9 @@ class LayoutTextLabeler:
             preview_canvas.delete("highlight")
             
             if shape_idx is not None and hasattr(preview_canvas, 'scale'):
+                # Delete the original shape to prevent overlap
+                preview_canvas.delete(f"shape_{shape_idx}")
+                
                 # Draw highlighted version
                 shape = shapes[shape_idx]
                 draw_shape_on_preview(
@@ -4173,6 +4211,13 @@ class LayoutTextLabeler:
         
         mapping_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         mapping_canvas.configure(yscrollcommand=mapping_scrollbar.set)
+        
+        # Add mousewheel scrolling
+        def on_mousewheel(event):
+            mapping_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        mapping_canvas.bind("<MouseWheel>", on_mousewheel)
+        scrollable_frame.bind("<MouseWheel>", on_mousewheel)
         
         mapping_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         mapping_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
