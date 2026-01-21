@@ -288,6 +288,16 @@ class CombinedLayoutApp:
                 # Create project in database
                 import sqlite3
                 project_id = self.db.create_project(name)
+                
+                # Clear old project data
+                self.current_project_id = None
+                self.current_project_name = None
+                self.current_pdf_path = None
+                self.shared_shapes = []
+                self.shared_json_path = None
+                self.shape_name_counter = 0
+                
+                # Set new project
                 self.current_project_id = project_id
                 self.current_project_name = name
                 
