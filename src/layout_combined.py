@@ -63,6 +63,9 @@ class CombinedLayoutApp:
         
         # Check for updates on startup (runs in background) 
         check_for_updates_on_startup(self.root)
+        
+        # Set up window close handler
+        self.root.protocol("WM_DELETE_WINDOW", self.on_window_close)
     
     def center_window(self, width, height):
         """Center window on screen"""
@@ -488,6 +491,23 @@ class CombinedLayoutApp:
         self.root.geometry("800x600")
         self.center_window(800, 600)
         self.show_project_selection()
+    
+    def on_window_close(self):
+        """Handle window close event - ask to save before closing"""
+        if self.current_project_id:
+            response = messagebox.askyesnocancel(
+                "Close Application",
+                f"Save '{self.current_project_name}' before closing?"
+            )
+            
+            if response is None:  # Cancel
+                return
+            elif response:  # Yes - Save
+                self.save_project()
+        
+        # Close the application
+        self.root.destroy()
+
 
     
     def setup_ui(self):
