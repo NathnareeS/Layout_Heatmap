@@ -61,11 +61,12 @@ class CombinedLayoutApp:
         # Initialize with project selection screen
         self.show_project_selection()
         
-        # Check for updates on startup (runs in background) 
-        check_for_updates_on_startup(self.root)
-        
         # Set up window close handler
         self.root.protocol("WM_DELETE_WINDOW", self.on_window_close)
+        
+        # Check for updates on startup (runs in background after UI is ready)
+        # Use after() to ensure UI is fully rendered before showing update dialog
+        self.root.after(1000, lambda: check_for_updates_on_startup(self.root))
     
     def center_window(self, width, height):
         """Center window on screen"""
@@ -80,6 +81,9 @@ class CombinedLayoutApp:
         # Clear any existing widgets
         for widget in self.root.winfo_children():
             widget.destroy()
+        
+        # Add menu bar for project selection screen
+        self.setup_project_selection_menu()
         
         # Set window background to a modern gradient-like color
         self.root.configure(bg="#f5f7fa")
@@ -249,6 +253,19 @@ class CombinedLayoutApp:
             "#dc2626"   # red-600
         )
         delete_btn.pack(side=tk.LEFT)
+    
+    def setup_project_selection_menu(self):
+        """Setup menu bar for project selection screen"""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        
+        help_menu.add_command(label="🔄 Check for Updates", command=lambda: manual_update_check(self.root))
+        help_menu.add_separator()
+        help_menu.add_command(label="About", command=self.show_about)
 
     
     def load_projects_list(self):

@@ -271,6 +271,16 @@ class UpdateChecker:
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     zip_ref.extractall(extract_dir)
                 
+                # Find the actual folder inside the extracted ZIP
+                # GitHub releases often contain a single folder inside the ZIP
+                extracted_items = os.listdir(extract_dir)
+                if len(extracted_items) == 1 and os.path.isdir(os.path.join(extract_dir, extracted_items[0])):
+                    # ZIP contains a single folder, use it as source
+                    source_dir = os.path.join(extract_dir, extracted_items[0])
+                else:
+                    # ZIP contains files directly
+                    source_dir = extract_dir
+                
                 status_label.config(text="Installing...")
                 
                 # Get the application directory
@@ -285,7 +295,7 @@ class UpdateChecker:
                 # Create a batch file to run the updater
                 batch_content = f"""@echo off
 timeout /t 2 /nobreak > nul
-python "{updater_script}" "{extract_dir}" "{app_dir}"
+python "{updater_script}" "{source_dir}" "{app_dir}"
 """
                 batch_path = os.path.join(temp_dir, "run_updater.bat")
                 with open(batch_path, 'w') as f:
