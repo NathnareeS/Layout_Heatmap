@@ -126,6 +126,10 @@ class TextLabel:
         self.use_custom_text = False  # If False, use shape name; if True, use custom text
         self.text_visible = True  # Toggle to hide/show text
         self.leader_visible = True  # Toggle to hide/show leader line
+        # Multiple leader lines support
+        self.additional_target_shapes = []  # List of shape indices to draw leader lines to
+        self.additional_leader_points = []  # List of leader point arrays, one per additional target
+        self.canvas_additional_leader_ids = []  # Canvas IDs for additional leader lines
 
 
 class LayoutTextLabeler:
@@ -465,6 +469,26 @@ class LayoutTextLabeler:
         self.undo_button = ttk.Button(button_frame, text="↶ Undo", command=self.undo_last_change, width=12, state='disabled')
         self.undo_button.pack(side=tk.LEFT, padx=2)
         
+        # Multiple Leader Lines Section
+        leader_lines_frame = ttk.LabelFrame(editor_frame, text="📍 Multiple Leader Lines", padding=10)
+        leader_lines_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        # Add Leader Line button
+        self.add_leader_btn = ttk.Button(
+            leader_lines_frame, 
+            text="+ Add Leader Line", 
+            command=self.start_add_leader_line_mode,
+            width=20
+        )
+        self.add_leader_btn.pack(pady=5)
+        
+        # Connected shapes list
+        self.connected_shapes_frame = ttk.Frame(leader_lines_frame)
+        self.connected_shapes_frame.pack(fill=tk.X, pady=5)
+        
+        # State variable for add leader line mode
+        self.add_leader_line_mode = False
+        
         # Track if changes are pending
         self.changes_pending = False
         
@@ -794,6 +818,9 @@ class LayoutTextLabeler:
             
             # Highlight shape on canvas
             self.highlight_selected_shape()
+            
+            # Update connected shapes display
+            self.update_connected_shapes_display()
             
             self.status_var.set(f"Selected Shape {self.selected_shape_index + 1}")
     
@@ -1899,6 +1926,73 @@ class LayoutTextLabeler:
                             arrow=tk.LAST,
                             tags="leader_line"
                         )
+                
+                # Draw additional leader lines
+                label.canvas_additional_leader_ids.clear()
+                for i, target_shape_idx in enumerate(label.additional_target_shapes):
+                    if target_shape_idx < len(self.shapes) and i < len(label.additional_leader_points):
+                        target_shape = self.shapes[target_shape_idx]
+                        points = label.additional_leader_points[i]
+                        
+                        if points:
+                            # Get the shape connection point
+                            if len(points) > 1:
+                                shape_x, shape_y = points[-1]
+                                shape_cx, shape_cy = self.image_to_canvas_coords(shape_x, shape_y)
+                            else:
+                                shape_cx, shape_cy = self.image_to_canvas_coords(points[0][0], points[0][1])
+                            
+                            # Calculate which edge of the label box is closest to the shape
+                            label_center_x = canvas_x + label_box_width / 2
+                            label_center_y = canvas_y + total_height / 2
+                            
+                            import math
+                            dx = shape_cx - label_center_x
+                            dy = shape_cy - label_center_y
+                            
+                            # Find intersection with label box border
+                            if abs(dx) > abs(dy):
+                                # Intersects left or right edge
+                                if dx > 0:  # Right edge
+                                    label_connect_x = canvas_x + label_box_width
+                                    label_connect_y = label_center_y
+                                else:  # Left edge
+                                    label_connect_x = canvas_x
+                                    label_connect_y = label_center_y
+                            else:
+                                # Intersects top or bottom edge
+                                if dy > 0:  # Bottom edge
+                                    label_connect_x = label_center_x
+                                    label_connect_y = canvas_y + total_height
+                                else:  # Top edge
+                                    label_connect_x = label_center_x
+                                    label_connect_y = canvas_y
+                            
+                            # Create line from label border to shape
+                            line_coords = [label_connect_x, label_connect_y, shape_cx, shape_cy]
+                            
+                            # Use same line properties as primary leader
+                            line_width = max(1, int(label.leader_width * min(self.zoom_factor, 1.5)))
+                            line_color = label.leader_color
+                            
+                            # Determine dash pattern based on style
+                            dash_pattern = None
+                            if label.leader_style == "dashed":
+                                dash_pattern = (8, 4)
+                            elif label.leader_style == "dotted":
+                                dash_pattern = (2, 4)
+                            
+                            # Draw additional leader line
+                            additional_leader_id = self.canvas.create_line(
+                                line_coords,
+                                fill=line_color,
+                                width=line_width,
+                                dash=dash_pattern if dash_pattern else "",
+                                arrow=tk.LAST,
+                                tags="leader_line"
+                            )
+                            label.canvas_additional_leader_ids.append(additional_leader_id)
+
     
     def is_point_in_shape(self, point: Tuple[float, float], shape: Dict) -> bool:
         """Check if a point is inside a shape"""
@@ -2108,6 +2202,14 @@ class LayoutTextLabeler:
         new_img_x, new_img_y = self.canvas_to_image_coords(new_canvas_x, new_canvas_y)
         label.position = (new_img_x, new_img_y)
         
+        # Recalculate additional leader lines
+        label.additional_leader_points = []
+        for target_idx in label.additional_target_shapes:
+            if target_idx < len(self.shapes):
+                target_shape = self.shapes[target_idx]
+                points = self.calculate_leader_line(label.position, target_shape)
+                label.additional_leader_points.append(points)
+        
         # Redraw
         self.display_canvas()
     
@@ -2215,7 +2317,12 @@ class LayoutTextLabeler:
         if self.shapes:
             for i, shape in enumerate(self.shapes):
                 if self.is_point_in_shape((img_x, img_y), shape):
-                    # Select this shape in listbox
+                    # If in add leader line mode, add leader line to this shape
+                    if self.add_leader_line_mode:
+                        self.add_leader_line_to_shape(i)
+                        return
+                    
+                    # Otherwise, select this shape in listbox
                     self.shape_listbox.selection_clear(0, tk.END)
                     self.shape_listbox.selection_set(i)
                     self.shape_listbox.see(i)
@@ -4669,6 +4776,110 @@ class LayoutTextLabeler:
         if not self.is_point_in_shape(label.position, shape):
             label.has_leader = True
             label.leader_points = self.calculate_leader_line(label.position, shape)
+    
+    # ===== Multiple Leader Lines Methods =====
+    
+    def start_add_leader_line_mode(self):
+        """Start mode for adding a new leader line"""
+        if not self.selected_label:
+            messagebox.showinfo("Info", "Please select a label first")
+            return
+        
+        self.add_leader_line_mode = True
+        self.add_leader_btn.config(text="Click a shape...", state='disabled')
+        self.status_var.set("Click on a shape to add a leader line (ESC to cancel)")
+        self.canvas.config(cursor="crosshair")
+    
+    def add_leader_line_to_shape(self, shape_index):
+        """Add a leader line to the specified shape"""
+        if not self.selected_label:
+            return
+        
+        # Don't add if it's the primary shape
+        if shape_index == self.selected_label.shape_index:
+            messagebox.showinfo("Info", "This is already the primary shape for this label")
+            self.exit_add_leader_line_mode()
+            return
+        
+        # Don't add if already connected
+        if shape_index in self.selected_label.additional_target_shapes:
+            messagebox.showinfo("Info", "This shape is already connected")
+            self.exit_add_leader_line_mode()
+            return
+        
+        # Add the shape to additional targets
+        self.selected_label.additional_target_shapes.append(shape_index)
+        
+        # Calculate leader line for this shape
+        if shape_index < len(self.shapes):
+            target_shape = self.shapes[shape_index]
+            points = self.calculate_leader_line(self.selected_label.position, target_shape)
+            self.selected_label.additional_leader_points.append(points)
+        
+        # Update display
+        self.update_connected_shapes_display()
+        self.display_canvas()
+        self.exit_add_leader_line_mode()
+        self.status_var.set(f"Leader line added to shape {shape_index + 1}")
+    
+    def remove_leader_line(self, shape_index):
+        """Remove a leader line to the specified shape"""
+        if not self.selected_label:
+            return
+        
+        if shape_index in self.selected_label.additional_target_shapes:
+            idx = self.selected_label.additional_target_shapes.index(shape_index)
+            self.selected_label.additional_target_shapes.pop(idx)
+            if idx < len(self.selected_label.additional_leader_points):
+                self.selected_label.additional_leader_points.pop(idx)
+            
+            # Update display
+            self.update_connected_shapes_display()
+            self.display_canvas()
+            self.status_var.set(f"Leader line to shape {shape_index + 1} removed")
+    
+    def exit_add_leader_line_mode(self):
+        """Exit add leader line mode"""
+        self.add_leader_line_mode = False
+        self.add_leader_btn.config(text="+ Add Leader Line", state='normal')
+        self.canvas.config(cursor="")
+        self.status_var.set("Ready")
+    
+    def update_connected_shapes_display(self):
+        """Update the display of connected shapes"""
+        # Clear existing widgets
+        for widget in self.connected_shapes_frame.winfo_children():
+            widget.destroy()
+        
+        if not self.selected_label:
+            return
+        
+        # Show primary shape
+        primary_frame = ttk.Frame(self.connected_shapes_frame)
+        primary_frame.pack(fill=tk.X, pady=2)
+        
+        shape_name = self.shapes[self.selected_label.shape_index].get("name", f"Shape {self.selected_label.shape_index + 1}")
+        ttk.Label(primary_frame, text=f"🔵 {shape_name} (Primary)", 
+                 font=("Arial", 9)).pack(side=tk.LEFT, padx=5)
+        
+        # Show additional connected shapes
+        for i, shape_idx in enumerate(self.selected_label.additional_target_shapes):
+            if shape_idx < len(self.shapes):
+                shape_frame = ttk.Frame(self.connected_shapes_frame)
+                shape_frame.pack(fill=tk.X, pady=2)
+                
+                shape_name = self.shapes[shape_idx].get("name", f"Shape {shape_idx + 1}")
+                ttk.Label(shape_frame, text=f"📍 {shape_name}", 
+                         font=("Arial", 9)).pack(side=tk.LEFT, padx=5)
+                
+                # Delete button
+                delete_btn = ttk.Button(
+                    shape_frame, 
+                    text="✕", 
+                    width=3,
+                    command=lambda idx=shape_idx: self.remove_leader_line(idx)
+                )
+                delete_btn.pack(side=tk.RIGHT, padx=2)
 
 
 
