@@ -1786,14 +1786,17 @@ class LayoutTextLabeler:
                                         font_underline = True
                                     break
                     
-                    # Calculate box dimensions for this line
+                    # Calculate box dimensions for this line (HIGHLIGHT STYLE - fit to text width)
                     line_box_height = line_heights[i] + (padding_y * 2)
-                    line_box_width = max_width + (padding_x * 2)
+                    line_box_width = line_widths[i] + (padding_x * 2)  # Use individual line width for highlight effect
+                    
+                    # Center-align boxes relative to max width (center as a group)
+                    box_offset_x = (max_width - line_widths[i]) / 2
                     
                     # Draw background box for this line (no border)
                     box_id = self.canvas.create_rectangle(
-                        canvas_x, current_y,
-                        canvas_x + line_box_width, current_y + line_box_height,
+                        canvas_x + box_offset_x, current_y,
+                        canvas_x + box_offset_x + line_box_width, current_y + line_box_height,
                         fill=bg_color,
                         outline="",
                         tags=f"label_box_{label.shape_index}"
@@ -1807,9 +1810,9 @@ class LayoutTextLabeler:
                                            weight=font_weight, slant=font_slant,
                                            underline=font_underline)
                     
-                    # Draw text centered on top of background
+                    # Draw text center-aligned within highlight
                     text_id = self.canvas.create_text(
-                        canvas_x + line_box_width / 2, current_y + padding_y,
+                        canvas_x + box_offset_x + line_box_width / 2, current_y + padding_y,
                         text=display_text,
                         anchor=tk.N,
                         font=text_font,
@@ -2807,15 +2810,18 @@ class LayoutTextLabeler:
                     else:
                         bg_color = "#FFFFFF"
                     
-                    # Calculate box dimensions (UNIFORM width for all lines - matching canvas)
+                    # Calculate box dimensions (HIGHLIGHT STYLE - fit to text width)
                     padding_x = 15  # Increased padding for more space
                     padding_y = 8  # Increased vertical padding to prevent text cutoff
-                    line_box_width = max_width + (padding_x * 2)  # Same width for all lines
+                    line_box_width = line_widths[i] + (padding_x * 2)  # Use individual line width for highlight effect
                     line_box_height = line_heights[i] + (padding_y * 2)
+                    
+                    # Center-align boxes relative to max width (center as a group)
+                    box_offset_x = (max_width - line_widths[i]) / 2
                     
                     # Draw background box for this line WITHOUT BORDER
                     draw.rectangle(
-                        [x, current_y, x + line_box_width, current_y + line_box_height],
+                        [x + box_offset_x, current_y, x + box_offset_x + line_box_width, current_y + line_box_height],
                         fill=bg_color,
                         outline=None,
                         width=0
@@ -2830,11 +2836,10 @@ class LayoutTextLabeler:
                     # Use the pre-calculated display text (already includes unit if applicable)
                     display_text = display_texts[i]
                     
-                    # Draw text centered horizontally, with padding from top
-                    # (Vertical centering calculation can cause cutoff issues)
-                    text_x = x + (line_box_width - line_widths[i]) / 2
+                    # Draw text center-aligned within highlight
+                    text_x = x + box_offset_x + line_box_width / 2
                     text_y = current_y + padding_y
-                    draw.text((text_x, text_y), display_text, fill=text_color, font=fonts[i])
+                    draw.text((text_x, text_y), display_text, fill=text_color, font=fonts[i], anchor="mt")
                     
                     # Check if underline is needed
                     if i < len(label.line_variables):
