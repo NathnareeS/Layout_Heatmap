@@ -48,11 +48,19 @@ def install_update(source_dir, target_dir):
         
         show_progress("Installing new version...")
         
+        # Files/folders to skip during copy (user data that will be restored later)
+        skip_items = {'layout_projects.db', 'data', 'examples', 'backup_old_version'}
+        
         # Copy new files
         for item in source_path.rglob('*'):
             if item.is_file():
                 # Get relative path
                 rel_path = item.relative_to(source_path)
+                
+                # Skip user data files - they will be restored from backup
+                if rel_path.parts[0] in skip_items:
+                    continue
+                
                 target_file = target_path / rel_path
                 
                 # Create parent directory if needed
