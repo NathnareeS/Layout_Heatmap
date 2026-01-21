@@ -2,8 +2,8 @@
 Version information for Layout Heatmap Generator
 """
 
-__version__ = "1.0.1"
-__release_date__ = "2026-01-07"
+__version__ = "1.0.2"
+__release_date__ = "2026-01-21"
 __app_name__ = "Layout Heatmap Generator"
 __author__ = "Nathnaree S."
 __github_repo__ = "NathnareeS/Layout_Heatmap"  # Update this with your GitHub username/repo
